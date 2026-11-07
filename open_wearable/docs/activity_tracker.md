@@ -75,9 +75,11 @@ need real-data tuning; a full body cycle cannot always be inferred from the ear.
 Jump height uses `h = g * flight_time² / 8`, with still preparation, propulsion,
 a low-acceleration flight interval and landing confirmation. Similar take-off
 and landing posture is assumed. It estimates ballistic flight height, not
-absolute head displacement. Samples slower than 40 Hz, ambiguous landings and
-clipped impacts produce an unavailable height. The ±2 g clipping heuristic is
-conservative for the OE2 compact format. Walking/running is not classified.
+absolute head displacement. Take-off and landing are the interpolated crossings
+of a 3.5 m/s² free-fall threshold, so clipped impact peaks do not affect the
+height. Samples slower than 40 Hz and ambiguous landings produce an unavailable
+height. A systematic flight-time offset (`flightOffset`, currently 0) is meant
+to be fitted against a reference measurement. Walking/running is not classified.
 
 Synthetic replay tests verify implementation behavior, **not real-world
 accuracy**. No earable hardware or participant dataset was available during

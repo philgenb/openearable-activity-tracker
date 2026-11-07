@@ -151,15 +151,43 @@ void main() {
     expect(r.jumps.single.heightCm, closeTo(19.6, 1.1));
     expect(r.steps, 0);
   });
-  test('clipping and slow samples make height unavailable', () {
+  test('clipped impacts keep the height, slow samples do not', () {
+    // Flight time only depends on the free-fall crossings, not on the peak.
     final clipped = _Replay()..still();
     clipped.engine.select(ActivityKind.jumps);
     clipped.jump(landing: 19.6);
-    expect(clipped.jumps.single.heightCm, isNull);
+    expect(clipped.jumps.single.heightCm, closeTo(19.6, 1.1));
     final slow = _Replay()..still();
     slow.engine.select(ActivityKind.jumps);
     slow.jump(dt: 0.04);
     expect(slow.jumps.single.heightCm, isNull);
+  });
+  test('interpolates take-off and landing between samples', () {
+    // Piecewise-linear profile: the 3.5 m/s² crossings fall between samples
+    // and move with the sampling phase. Without interpolation the error
+    // would reach one sample period (10 ms).
+    double profile(double t) {
+      double ramp(double t0, double a, double b) =>
+          a + (b - a) * ((t - t0) / 0.04).clamp(0.0, 1.0);
+      if (t < 0) return ActivityEngine.gravity;
+      if (t < 0.1) return 15;
+      if (t < 0.6) return ramp(0.1, 15, 0.2);
+      if (t < 0.7) return ramp(0.6, 0.2, 17);
+      return ActivityEngine.gravity;
+    }
+
+    const truth = (0.6 + 0.04 * 3.3 / 16.8) - (0.1 + 0.04 * 11.5 / 14.8);
+    for (final phase in [0.0, 0.0025, 0.005, 0.0075]) {
+      final r = _Replay()..still();
+      r.engine.select(ActivityKind.jumps);
+      r.still(1);
+      final start = r.time + phase;
+      for (var i = 0; i < 150; i++) {
+        r.sample(profile(r.time + 0.01 - start));
+      }
+      r.still(1);
+      expect(r.jumps.single.flightSeconds, closeTo(truth, 0.001));
+    }
   });
   test('data gaps discard partial flight and do not invent counts', () {
     final r = _Replay()

@@ -2,6 +2,20 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-07: Sprunghöhe überarbeitet
+
+**Was:** Phils Sprungdetektor aus `feat/activity-tracker` übernommen und an zwei Stellen korrigiert. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md).
+
+**Warum:** Der Prototyp verwarf jeden Sprung, sobald der Sensor bei ±2 g abschnitt. Beim Landen am Kopf passiert das fast immer, die App hätte also kaum je eine Höhe angezeigt. Für die Flugzeit-Methode zählen aber nur die Zeitpunkte, an denen die Beschleunigung die Freifall-Schwelle kreuzt, und die liegen weit unter 2 g. Außerdem werden diese Zeitpunkte jetzt zwischen zwei Samples interpoliert, weil 10 ms Fehler bei 100 Hz bis zu ca. 1,2 cm Höhe ausmachen. Verworfen: Höhe über die Abhebegeschwindigkeit (Abdruck wird ebenfalls abgeschnitten) und doppelte Integration (Drift).
+
+**Ergebnis:** Nur synthetische Tests. Flugzeit mit Interpolation innerhalb 1 ms, ohne 7 ms daneben. Keine Messung mit Hardware oder Personen.
+
+**Offen:**
+
+- Evaluation mit Slow-Motion-Video als Referenz, Plan steht im Algorithmus-Dokument.
+- `flightOffset` gegen die Referenz fitten.
+- Messbereich der OE2-IMU prüfen.
+
 ## 2026-11-06: Android-Build auf Java 25 umgestellt
 
 **Was:** Gradle von 8.14 auf 9.3.1 aktualisiert, AGP von 8.12.1 auf 9.1.0, Kotlin von 2.2.21 auf 2.4.0.
