@@ -13,7 +13,7 @@ Hier sammeln wir alles, was wir für Zwischenpräsentation, Abschlusspräsentati
 | `praesentationen/` | Gliederung und Kernaussagen je Termin | Zwischen- und Abschlusspräsentation |
 | `figures/` | Abbildungen samt Quelle oder Skript | Präsentationen und Paper |
 
-Erster Algorithmusbericht: [Liegestütz-Zählung](algorithmen/liegestuetze.md).
+Algorithmusberichte: [Liegestütz-Zählung](algorithmen/liegestuetze.md), [Sprunghöhe](algorithmen/sprunghoehe.md).
 Weitere Pfade legen wir an, sobald es dafür Inhalt gibt.
 
 ## Journal-Eintrag
