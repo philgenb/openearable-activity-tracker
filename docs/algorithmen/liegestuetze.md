@@ -27,15 +27,17 @@ verworfen, weil es bei nahtlosen Wiederholungen neue Integrationsfehler erzeugt.
    Der Restoffset wird erst nach 0,45 s Filter-Einschwingzeit gemittelt.
 3. Die offsetbereinigte Beschleunigung wird kurzfristig integriert. Der
    Positionswert bleibt während einer Pause erhalten.
-4. Auf Absenken folgt eine Rückbewegung von mindestens 80 % der geschätzten
-   Absenkung. Erst nahe geschätzter Geschwindigkeit null wird gezählt. Eine
+4. Auf Absenken folgt eine Rückbewegung von mindestens 75 % der geschätzten
+   Absenkung. Ein vom Rückbewegungstempo abhängiger Umkehrpunkt bestätigt die Zählung. Eine
    Mindestbewegung und Mindestdauer verwerfen kleine beziehungsweise kurze Zyklen.
 5. Nahe Stillstand darf die Geschwindigkeit korrigiert werden, nicht die aktive
    Absenkung. Restgeschwindigkeit bleibt beim Übergang zur nächsten Wiederholung
-   erhalten. Große Kopfrotationen, Übersteuerung, Datenlücken und Moduswechsel
-   verwerfen unvollständige Zyklen; ein Zeitlimit von 8 s begrenzt Drift.
+   erhalten. Große Kopfrotationen, Übersteuerung, Richtungswechsel und Zeitlimit
+   verwerfen nur die aktuelle Bewegung, nicht die Satzkalibrierung. Dabei bleibt
+   der Detektor bereit; ein erneuter 0,7-s-Halt ist nicht nötig. Datenlücken,
+   Pausen und Moduswechsel setzen weiterhin die Kalibrierung zurück.
 
-Die Schwellwerte sind Heuristiken. Insbesondere der Positionsproxy mit 0,035 m
+Die Schwellwerte sind Heuristiken. Insbesondere der Positionsproxy mit 0,025 m
 Mindestamplitude ist keine gemessene anatomische Tiefe. Bei nur geringer
 Beschleunigung kann ein IMU-Detektor Stillstand nicht sicher von konstanter
 Geschwindigkeit unterscheiden. Ein kurzer Halt in der oberen Position hilft
@@ -44,7 +46,7 @@ bei der Bestätigung der letzten Wiederholung.
 ## Evaluation und Grenzen
 
 - 0 Versuchspersonen, keine Hardware-Aufnahmen; ausschließlich synthetische Signale.
-- 38 Regressionstests in `open_wearable/test/apps/activity_tracker/push_up_detector_test.dart`.
+- Ursprünglich 38 Regressionstests in `open_wearable/test/apps/activity_tracker/push_up_detector_test.dart`.
 - Unabhängige quintische Ruhe-zu-Ruhe-Trajektorien liefern die Referenz: jeweils
   6 Zyklen bei 8/16/25 cm simuliertem Hub und 1/1,8/3/5/7 s Zyklusdauer, 100 Hz.
   In diesen 15 Signalen wurden vorher 82 von 90, jetzt 90 von 90 Zyklen gezählt.
@@ -64,3 +66,33 @@ Ausführen aus `open_wearable/`:
 ```sh
 flutter test test/apps/activity_tracker/push_up_detector_test.dart
 ```
+
+## Anpassung nach erstem Praxistest am 10.11.2026
+
+Rückmeldung: Wiederholungen werden teilweise erkannt, danach erscheint wieder
+„Hold the start position“; kleinere Bewegungen gehen verloren. Es liegen dazu
+keine Rohdaten oder annotierten Referenzzahlen vor.
+
+Ursache im Code: Auch lokale Bewegungsabbrüche riefen den vollständigen Reset
+mit 0,7-s-Startpositions-Halt auf. Jetzt bleibt eine einmal erreichte
+Satzkalibrierung bei solchen Abbrüchen erhalten. Eine übersteuerte Probe wird
+verworfen und ihr Filter-Nachlauf entfernt. Echte Datenunterbrechungen bleiben
+separat abgesichert.
+
+Sensitivität: Mindesthub des Bewegungsproxys 0,035 → 0,025 m,
+Absenkgeschwindigkeit 0,035 → 0,020 m/s, Rückkehrbeginn 0,025 → 0,015 m/s,
+Rückkehranteil 80 → 75 %, Mindestdauer 0,65 → 0,50 s. Der obere Umkehrpunkt
+verwendet maximal 0,04 m/s beziehungsweise 30 % des Rückkehr-Spitzenwerts und
+erkennt einen Vorzeichenwechsel der Geschwindigkeit. Die aktive
+Stillstandskorrektur greift erst unter 0,005 m/s, damit langsame Bewegungen
+nicht fälschlich auf null gesetzt werden. Die Schwellwerte sind vorläufig.
+
+Neue Gegenproben: 8 nahtlose Zyklen mit 4 cm simuliertem Hub bei 2/3/5 s,
+Rotations-/Clipping-Störungen ohne erneuten Halt, Teilrückkehr mit Umkehr sowie
+ungleiche Absenk-/Aufrichtzeiten. Vor der Änderung fehlten alle 8 langsamen
+4-cm-Zyklen sowie die direkt auf die Störung folgenden Wiederholungen in den
+entsprechenden Tests. Die ursprünglichen Teilbewegungs- und Negativtests bleiben
+erhalten. Es ist weiterhin keine Aussage über reale Zählgenauigkeit möglich.
+
+Prüfung nach der Anpassung: 46 Push-up-Tests und 213 Tests insgesamt bestanden;
+`flutter analyze` ohne Befund. Die bisherigen Negativfälle bleiben grün.

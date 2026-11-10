@@ -16,7 +16,7 @@ class _PushUpReplay {
   final MotionVector up;
   final engine = ActivityEngine();
   double time = 0, bias = 0;
-  int repetitions = 0, steps = 0;
+  int repetitions = 0, steps = 0, restartSamples = 0;
 
   void sample(double acceleration, {MotionVector gyro = MotionVector.zero}) {
     time += dt;
@@ -33,6 +33,7 @@ class _PushUpReplay {
     );
     repetitions += update.repetitions;
     steps += update.steps;
+    if (engine.phase == 'Hold the start position') restartSamples++;
   }
 
   void hold(double seconds, {MotionVector gyro = MotionVector.zero}) {
@@ -45,6 +46,7 @@ class _PushUpReplay {
     hold(2);
     engine.select(ActivityKind.pushUps);
     hold(1);
+    restartSamples = 0;
   }
 
   void move(double distance, double seconds) {
@@ -133,10 +135,63 @@ void main() {
     r.hold(1);
     expect(r.repetitions, 0);
   });
+  for (final period in [2.0, 3.0, 5.0]) {
+    test('counts smaller head excursions without repeated setup: $period s',
+        () {
+      final r = _PushUpReplay()..start();
+      for (var i = 0; i < 8; i++) {
+        r.cycle(depth: 0.04, period: period);
+      }
+      r.hold(1);
+      expect(r.repetitions, 8);
+      expect(r.restartSamples, 0);
+    });
+  }
+  test('a rejected rotation does not require holding the starting pose again',
+      () {
+    final r = _PushUpReplay()..start();
+    for (var i = 0; i < 6; i++) {
+      r.sample(0, gyro: const MotionVector(0, 0, 2));
+      r.cycle();
+    }
+    r.hold(1);
+    expect(r.repetitions, 6);
+    expect(r.restartSamples, 0);
+  });
+  test('a clipped sample does not require a new starting-pose hold', () {
+    final r = _PushUpReplay()..start();
+    r.sample(20);
+    r.cycle();
+    r.hold(1);
+    expect(r.repetitions, 1);
+    expect(r.restartSamples, 0);
+  });
+  test('a partial return and reversal skips the cycle without rearming', () {
+    final r = _PushUpReplay()..start();
+    r.move(-0.16, 0.9);
+    r.move(0.04, 0.6);
+    r.move(-0.04, 0.6);
+    r.hold(1);
+    expect(r.repetitions, 0);
+    expect(r.restartSamples, 0);
+  });
+  for (final lowering in [0.6, 2.0]) {
+    test('uneven down/up tempo $lowering seconds needs no extra hold', () {
+      final r = _PushUpReplay()..start();
+      for (var i = 0; i < 6; i++) {
+        r.move(-0.06, lowering);
+        r.move(0.06, 2.6 - lowering);
+      }
+      r.hold(1);
+      expect(r.repetitions, 6);
+      expect(r.restartSamples, 0);
+    });
+  }
   test('returning only after the movement timeout does not count', () {
     final r = _PushUpReplay()..start();
     r.move(-0.16, 0.9);
     r.hold(9);
+    expect(r.restartSamples, 0);
     r.move(0.16, 0.9);
     r.hold(1);
     expect(r.repetitions, 0);

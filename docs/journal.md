@@ -2,6 +2,27 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-10: Kontinuierliche Push-ups nach Praxisrückmeldung
+
+**Was:** Lokale Bewegungsabbrüche behalten jetzt die Satzkalibrierung. Kein neuer
+Startpositions-Halt nach verworfenen Zyklen, Kopfrotationen oder Clipping.
+Kleinere Bewegungen werden sensitiver erkannt; Umkehrpunkt und Driftkorrektur
+berücksichtigen langsame Bewegungen. Englische UI erklärt den einmaligen Halt.
+
+**Warum:** Der vollständige Reset blockierte nach einer unsicheren Wiederholung
+erneut für die Startposition. Nur die Stillhaltezeit zu verkürzen hätte die
+Ursache nicht beseitigt. Echte Datenlücken und Pausen verlangen weiter eine
+neue Kalibrierung. Parameter und Gegenproben im
+[Algorithmusbericht](algorithmen/liegestuetze.md#anpassung-nach-erstem-praxistest-am-10112026).
+
+**Evaluation:** Synthetische Regressionen für nahtlose kleinere Zyklen, Störungen,
+Teilbewegungen und ungleiches Tempo. Keine neuen Probandenaufnahmen oder
+quantitativen Hardware-Messungen; die Praxisrückmeldung ist qualitativ.
+46 Push-up-Tests und 213 Tests insgesamt bestanden, `flutter analyze` ohne Befund.
+
+**Offen:** Erneuter Test am Earable, danach anhand synchronisierter Referenzen
+prüfen, ob die höhere Sensitivität zusätzliche Fehlzählungen erzeugt.
+
 ## 2026-11-10: Push-up-Zähler nach Rebase geprüft und korrigiert
 
 **Was:** `feat/activity-tracker` auf `origin/main` rebased; neuere Android-Toolchain

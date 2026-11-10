@@ -761,8 +761,10 @@ class _ExercisePage extends StatelessWidget {
                     children: [
                       ActivitySignal(c.signal),
                       const SizedBox(height: 10),
-                      const ActivityCaption(
-                        'Hold the start position briefly. Lower and return fully; keep your head aligned with your body.',
+                      ActivityCaption(
+                        c.mode == ActivityKind.pushUps
+                            ? 'Hold the start position once, then continue at your own pace. No pause is needed between repetitions. Keep your head aligned with your body.'
+                            : 'Hold the start position briefly. Lower and return fully; keep your head aligned with your body.',
                       ),
                     ],
                   ),

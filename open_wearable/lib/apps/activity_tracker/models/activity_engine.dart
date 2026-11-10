@@ -166,7 +166,11 @@ class ActivityEngine {
       return ActivityUpdate(jump: jump);
     }
     if (kind == ActivityKind.pushUps) {
-      if (clipped) _pushUps.reset();
+      if (clipped) {
+        _pushUps.discardMovement();
+        // Do not feed the impact's low-pass tail into the next movement.
+        _smooth = movement = 0;
+      }
       final count =
           clipped ? 0 : _pushUps.add(s.seconds, _smooth, dt, angularSpeed);
       phase = _pushUps.phase;
