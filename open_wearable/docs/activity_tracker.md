@@ -66,11 +66,21 @@ window. The first three steps are credited together. One/two-step bouts can be
 missed. Isolated peaks and strong head rotations are suppressed. This is a
 heuristic starting point: head motions resembling gait can still cause errors.
 
-Repetitions use bounded integration of projected acceleration as a motion proxy,
-hysteretic down/return phases, minimum excursion and duration checks. It is not
-a measured squat depth or a form-quality assessment. Parameters differ for
-squats and push-ups. Slow, shallow, asymmetric or head-independent movements
-need real-data tuning; a full body cycle cannot always be inferred from the ear.
+Squats use bounded integration of projected acceleration as a motion proxy.
+Push-ups have a separate detector: a quiet 0.7 s starting window estimates a
+local acceleration offset after filter settling, then short-window integration
+tracks descent and return without decaying displacement during a hold. A return
+of at least 80% of the estimated descent and near-zero estimated velocity is
+required. Residual velocity is preserved between continuous repetitions to avoid
+injecting drift. Near-rest correction, an 8 s cycle timeout and motion bounds
+limit integration errors; strong head rotations, clipping and data gaps discard
+partial cycles. A brief hold at the top helps the causal filter settle before
+the last repetition is confirmed. See `models/push_up_detector.dart`.
+
+These are heuristic motion proxies, not measured exercise depth or a form-quality
+assessment. Fixed thresholds and independent head movement still need real-data
+evaluation. The push-up regression suite uses synthetic kinematic signals only;
+a full body cycle cannot always be inferred from the ear.
 
 Jump height uses `h = g * flight_time² / 8`, with still preparation, propulsion,
 a low-acceleration flight interval and landing confirmation. Similar take-off

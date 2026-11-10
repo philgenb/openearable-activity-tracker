@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'activity_models.dart';
+import 'push_up_detector.dart';
 
 /// Events from one sample. Counts are deltas, so UI throttling loses no events.
 class ActivityUpdate {
@@ -30,6 +31,7 @@ class ActivityEngine {
   double _smooth = 0;
   final _steps = _StepDetector();
   final _reps = _RepetitionDetector();
+  final _pushUps = PushUpDetector();
   final _jumps = _JumpDetector();
 
   /// Validated calibration snapshot for reproducing a session offline.
@@ -63,6 +65,7 @@ class ActivityEngine {
     movement = 0;
     _steps.reset();
     _reps.reset();
+    _pushUps.reset();
     _jumps.reset();
     phase = 'Stand still briefly';
   }
@@ -72,6 +75,7 @@ class ActivityEngine {
     kind = next;
     _steps.reset();
     _reps.reset();
+    _pushUps.reset();
     _jumps.reset();
     _smooth = 0;
     phase = next == ActivityKind.steps
@@ -161,14 +165,14 @@ class ActivityEngine {
       phase = _jumps.inMotion ? 'Jump in progress' : 'Ready for next jump';
       return ActivityUpdate(jump: jump);
     }
-    final count = clipped
-        ? 0
-        : _reps.add(
-            s.seconds,
-            _smooth,
-            dt,
-            kind == ActivityKind.squats ? 0.065 : 0.035,
-          );
+    if (kind == ActivityKind.pushUps) {
+      if (clipped) _pushUps.reset();
+      final count =
+          clipped ? 0 : _pushUps.add(s.seconds, _smooth, dt, angularSpeed);
+      phase = _pushUps.phase;
+      return ActivityUpdate(repetitions: count);
+    }
+    final count = clipped ? 0 : _reps.add(s.seconds, _smooth, dt, 0.065);
     if (clipped) _reps.reset();
     phase = _reps.phase;
     return ActivityUpdate(repetitions: count);

@@ -13,7 +13,8 @@ Hier sammeln wir alles, was wir für Zwischenpräsentation, Abschlusspräsentati
 | `praesentationen/` | Gliederung und Kernaussagen je Termin | Zwischen- und Abschlusspräsentation |
 | `figures/` | Abbildungen samt Quelle oder Skript | Präsentationen und Paper |
 
-Bisher gibt es nur das Journal. Die anderen Pfade legen wir an, sobald es dafür Inhalt gibt.
+Erster Algorithmusbericht: [Liegestütz-Zählung](algorithmen/liegestuetze.md).
+Weitere Pfade legen wir an, sobald es dafür Inhalt gibt.
 
 ## Journal-Eintrag
 
