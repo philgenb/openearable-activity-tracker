@@ -2,6 +2,28 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-10: Push-up-Erkennung leicht empfindlicher eingestellt
+
+Absenkschwelle 0,020 → 0,019 m/s und Rückkehrbeginn 0,015 → 0,013 m/s.
+Mindesthub, Rückwegprüfung und Mindestdauer bleiben bestehen. Auf Wunsch
+nur die vorhandenen Push-up-Tests und den lokalen Replay erneut geprüft.
+Rohdaten unter `data/` bleiben außerhalb des Commits.
+
+## 2026-11-10: Lowering-Blockade anhand einer lokalen Aufnahme geprüft
+
+**Befund:** Die lokale Aufnahme hat etwa 100 Hz und keine Zeitlücken über 120 ms.
+Mit dem bisherigen Code werden 3 Wiederholungen gezählt; die qualitative
+Selbstauskunft liegt bei ungefähr 5–7, eine Videoannotation fehlt.
+
+**Änderung:** Gedämpfte Integratoren begrenzen Offsetdrift. Ein separater,
+ungedämpfter Rückweg-Proxy schützt Teilbewegungen nach Pausen. Für kontinuierliche
+Zyklen wird zusätzlich die Dauer und Stärke beider Bewegungsphasen verglichen.
+
+**Ergebnis:** Replay zählt 6 Wiederholungen. Alle 49 Push-up-Tests und 216 Tests
+insgesamt bestehen, einschließlich Teilrückkehr und neuer Offsetwechsel-Fälle.
+Das ist ein Entwicklungsvergleich an einer einzelnen, nicht exakt annotierten
+Aufnahme; keine unabhängige Genauigkeitsevaluation. Rohdaten bleiben lokal.
+
 ## 2026-11-10: Kontinuierliche Push-ups nach Praxisrückmeldung
 
 **Was:** Lokale Bewegungsabbrüche behalten jetzt die Satzkalibrierung. Kein neuer

@@ -277,6 +277,20 @@ void main() {
       expect(r.repetitions, 6);
     });
   }
+  for (final changedBias in [-0.005, -0.01, 0.01]) {
+    test(
+        'a small offset change during the set does not stall Lowering: $changedBias',
+        () {
+      final r = _PushUpReplay()..start();
+      r.bias = changedBias;
+      for (var i = 0; i < 6; i++) {
+        r.cycle();
+      }
+      r.hold(1);
+      expect(r.repetitions, 6);
+      expect(r.restartSamples, 0);
+    });
+  }
   test('small stationary acceleration residuals do not invent repetitions', () {
     for (final bias in [-0.1, -0.05, 0.05, 0.1]) {
       final r = _PushUpReplay()..start();

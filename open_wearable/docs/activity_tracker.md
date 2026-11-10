@@ -68,17 +68,14 @@ heuristic starting point: head motions resembling gait can still cause errors.
 
 Squats use bounded integration of projected acceleration as a motion proxy.
 Push-ups have a separate detector: a quiet 0.7 s starting window estimates a
-local acceleration offset after filter settling, then short-window integration
-tracks descent and return without decaying displacement during a hold. A return
-of at least 75% of the estimated descent and a speed-adaptive top check is
-required. Residual velocity is preserved between continuous repetitions to avoid
-injecting drift. Near-rest correction, an 8 s cycle timeout and motion bounds
-limit integration errors. Strong head rotations, clipping, timeouts and rejected
-cycles discard the movement but keep the set calibration, so no starting-pose
-hold is required between repetitions. Clipped filter tails are also cleared.
-Data gaps, pauses and mode changes still require fresh calibration. Minimum
-motion-proxy excursion is 0.025 m; it is not a physical depth requirement. A brief
-natural turnaround at the top lets the causal filter confirm the final repetition. See `models/push_up_detector.dart`.
+local acceleration offset after filter settling. Damped velocity and position
+proxies limit accumulating drift. An undamped reference checks the return;
+continuous cycles also compare speed and duration of both phases. This alternate
+comparison is disabled after a hold so waiting cannot complete a partial return.
+The minimum proxy excursion is 0.015 m, not a physical depth measurement.
+Local movement rejection keeps the set ready without another starting-pose hold;
+data gaps, pauses and mode changes still require fresh calibration. See
+`models/push_up_detector.dart`.
 
 These are heuristic motion proxies, not measured exercise depth or a form-quality
 assessment. Fixed thresholds and independent head movement still need real-data

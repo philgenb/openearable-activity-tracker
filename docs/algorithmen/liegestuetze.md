@@ -2,6 +2,23 @@
 
 Stand: 10.11.2026. Manuell gewählter Push-up-Modus, ohne ML.
 
+## Aktueller Stand nach der Lowering-Rückmeldung
+
+Die folgende Historie beschreibt auch verworfene Zwischenstände. Aktuell werden
+Geschwindigkeit und Positionsproxy gedämpft, um fortlaufende Offsetdrift zu
+begrenzen. Zusätzlich bleibt eine ungedämpfte Referenz für die Rückwegprüfung
+erhalten; nahe Ruhe werden Geschwindigkeit und der aktive Proxy angehalten.
+Eine zeitbegrenzte Restgeschwindigkeitskorrektur und ein Vergleich von
+Spitzengeschwindigkeit × Phasendauer helfen bei kontinuierlichen Zyklen. Nach
+einem Halt ist dieser alternative Phasenvergleich deaktiviert, damit die
+Wartezeit keine unvollständige Rückkehr vervollständigt. Der Mindestproxyhub
+beträgt nun 0,015 m und ist weiterhin keine gemessene anatomische Tiefe.
+
+Eine lokale Aufnahme (ca. 100 Hz, keine Lücken >120 ms) liefert im Replay
+6 statt vorher 3 Zählungen. Die Selbstauskunft beträgt nur ungefähr 5–7,
+exakte Referenzannotation fehlt. Alle 49 Push-up-Tests bestehen; das ersetzt
+keine unabhängige Nutzerevaluation. Rohdaten werden nicht eingecheckt.
+
 ## Befund und Entscheidung
 
 Der Prototyp verwendete denselben Detektor wie Squats, lediglich mit anderer
@@ -96,3 +113,12 @@ erhalten. Es ist weiterhin keine Aussage über reale Zählgenauigkeit möglich.
 
 Prüfung nach der Anpassung: 46 Push-up-Tests und 213 Tests insgesamt bestanden;
 `flutter analyze` ohne Befund. Die bisherigen Negativfälle bleiben grün.
+
+## Leichte Sensitivitätsanpassung am 10.11.2026
+
+Auf erneute Praxisrückmeldung: Absenkschwelle von 0,020 auf 0,019 m/s und
+Beginn der Rückbewegung von 0,015 auf 0,013 m/s gesenkt. Mindesthub,
+Rückwegvergleich, Mindestdauer und Gyroskop-Grenze bleiben unverändert.
+Eine stärkere Absenkung des Mindesthubs wurde verworfen, weil dann eine
+Teilbewegungs-Gegenprobe fälschlich zählte. Nur vorhandene Push-up-Tests und lokaler
+Replay wurden erneut ausgeführt; keine neue vollständige Evaluationsrunde.
