@@ -149,7 +149,16 @@ class ActivityEngine {
             ? 'Low sample rate'
             : 'Steady signal';
     final jump = (kind == ActivityKind.steps || kind == ActivityKind.jumps)
-        ? _jumps.add(s.seconds, magnitude, angularSpeed, dt)
+        ? _jumps.add(
+            s.seconds,
+            magnitude,
+            angularSpeed,
+            dt,
+            gravity: _gravityMagnitude,
+            // In jump mode the user announced jumps; only step tracking needs
+            // a still stance first to keep running from looking like jumps.
+            armed: kind == ActivityKind.jumps,
+          )
         : null;
     if (kind == ActivityKind.steps) {
       phase = 'Tracking steps';
@@ -291,6 +300,7 @@ class _RepetitionDetector {
 /// which removes most of the ±1 sample timing error at 100 Hz.
 class _JumpDetector {
   static const _freeFall = 3.5, _impact = 12.3;
+  static const _armWindow = 2.0, _minFlight = 0.08;
 
   /// Systematic flight-time correction in seconds. Fit it against a reference
   /// (contact mat or slow-motion video) once data exists. Ear-worn detection is
@@ -323,21 +333,35 @@ class _JumpDetector {
     return _previousTime + (t - _previousTime) * f;
   }
 
-  JumpAttempt? add(double t, double magnitude, double gyro, double dt) {
-    final result = _add(t, magnitude, gyro, dt);
+  JumpAttempt? add(
+    double t,
+    double magnitude,
+    double gyro,
+    double dt, {
+    double gravity = ActivityEngine.gravity,
+    bool armed = false,
+  }) {
+    final result = _add(t, magnitude, gyro, dt, gravity, armed);
     _previousTime = t;
     _previousMagnitude = magnitude;
     return result;
   }
 
-  JumpAttempt? _add(double t, double magnitude, double gyro, double dt) {
+  JumpAttempt? _add(
+    double t,
+    double magnitude,
+    double gyro,
+    double dt,
+    double gravity,
+    bool armed,
+  ) {
     if (t < _cooldown) return null;
-    _still = (magnitude - ActivityEngine.gravity).abs() < 0.8 && gyro < 0.3
-        ? _still + dt
-        : 0;
+    // Calibrated gravity: IMU scale errors of a few percent are common.
+    _still = (magnitude - gravity).abs() < 0.8 && gyro < 0.3 ? _still + dt : 0;
     if (!_airborne && _endFlight < 0) {
-      if (_still >= 0.5) _armedAt = t;
-      if (t - _armedAt < 0.7 && magnitude > _impact) _push = t;
+      if (armed || _still >= 0.5) _armedAt = t;
+      // A countermovement (dip, then push) takes about 1 s after standing.
+      if (t - _armedAt < _armWindow && magnitude > _impact) _push = t;
       if (t - _push < 0.5 && magnitude < _freeFall) {
         _airborne = true;
         _takeoff = _crossing(t, magnitude);
@@ -349,6 +373,13 @@ class _JumpDetector {
     if (_airborne && magnitude >= _freeFall) {
       _airborne = false;
       _endFlight = _crossing(t, magnitude);
+      // Single-sample dips while pushing off are vibration, not flight. Drop
+      // them without a cooldown so the real take-off is still detected.
+      if (_endFlight - _takeoff < _minFlight) {
+        _endFlight = _takeoff = -100;
+        if (magnitude > _impact) _push = t;
+        return null;
+      }
     }
     if (_airborne && t - _takeoff > 0.85) {
       reset();
@@ -358,7 +389,7 @@ class _JumpDetector {
       final flight = _endFlight - _takeoff - flightOffset;
       final landed = magnitude > _impact;
       final valid = flight >= 0.12 && flight <= 0.85 && landed && !_slow;
-      final result = flight >= 0.08
+      final result = flight >= _minFlight
           ? JumpAttempt(
               at: t,
               flightSeconds: flight,

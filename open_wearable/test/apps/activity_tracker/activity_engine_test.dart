@@ -162,6 +162,35 @@ void main() {
     slow.jump(dt: 0.04);
     expect(slow.jumps.single.heightCm, isNull);
   });
+  test('real-world take-off: slow dip, push vibration, no still stance', () {
+    // Shape of an ear-worn recording (2026-11-13): ~1 s countermovement,
+    // single-sample dips below the free-fall threshold while pushing off and
+    // a fidgeting head before the jump. Expect one jump with ~0.37 s flight.
+    final r = _Replay()..still();
+    r.engine.select(ActivityKind.jumps);
+    for (var i = 0; i < 100; i++) {
+      r.sample(ActivityEngine.gravity + (i.isEven ? 1.2 : -1.2));
+    }
+    for (var i = 0; i < 40; i++) {
+      r.sample(8.5);
+    }
+    for (var i = 0; i < 30; i++) {
+      r.sample(20);
+    }
+    for (final v in [2.4, 12.4, 10.9, 4.0, 7.7, 3.2, 4.0, 3.7]) {
+      r.sample(v);
+    }
+    for (var i = 0; i < 37; i++) {
+      r.sample(1);
+    }
+    for (var i = 0; i < 10; i++) {
+      r.sample(20);
+    }
+    r.still(1);
+    expect(r.jumps, hasLength(1));
+    expect(r.jumps.single.flightSeconds, closeTo(0.37, 0.02));
+    expect(r.jumps.single.heightCm, isNotNull);
+  });
   test('interpolates take-off and landing between samples', () {
     // Piecewise-linear profile: the 3.5 m/s² crossings fall between samples
     // and move with the sampling phase. Without interpolation the error
