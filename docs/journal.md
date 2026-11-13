@@ -2,6 +2,20 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-13: Sprung-Test am Earable und Session-Navigation
+
+**Was:** `feat/jump-height` auf den aktuellen `main` rebased. Erster Sprung-Test mit Hardware (1 Person, 4 Sprünge, ca. 100 Hz, keine Referenz): Die App zeigte keine einzige Höhe. Ursachen und Fix in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-hardware-test-13112026). Replay der Aufnahme: 3 von 3 gültigen Sprüngen erkannt.
+
+Außerdem drei Navigationsfehler behoben:
+
+- Zurück aus dem Sprung-Test ließ den Modus auf „Jumps“, danach war keine Übung mehr wählbar. Der Sprung-Test hat unten nur noch „Pause“ und „End session“, Zurück fragt dasselbe. „End session“ speichert die Session und startet sofort eine neue auf demselben, schon kalibrierten Earable. Man landet direkt auf der Schritt-Übersicht. „End and save session“ in der Session-Ansicht macht dasselbe. Das komplette Tracking beendet man über die Übersicht (Menü oder Zurück-Dialog). Entscheidung nach zwei Gerätetests: Für Sprungmessungen soll eine Session ein Testblock sein, der sich ohne Neuverbinden abschließen lässt.
+- Session beenden trennte das Earable, man musste neu verbinden. Jetzt bleibt es verbunden und kalibriert, die nächste Session startet direkt. Freigegeben wird es erst beim Verlassen des Trackers.
+- „Back to tracking“ in der Zusammenfassung ging nur zur Session-Liste zurück. Jetzt springt es bis zum Tracker.
+
+**Warum so:** Die Session selbst läuft bewusst app-weit weiter, damit Schritte zwischen Screens nicht verloren gehen. Deshalb kein automatisches Beenden beim Zurück, sondern eine Frage.
+
+**Ergebnis:** Synthetischer Regressionstest für die reale Signalform, Widget-Test für den ganzen Zurück- und Beenden-Ablauf. 219 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet.
+
 ## 2026-11-10: Push-up-Erkennung leicht empfindlicher eingestellt
 
 Absenkschwelle 0,020 → 0,019 m/s und Rückkehrbeginn 0,015 → 0,013 m/s.

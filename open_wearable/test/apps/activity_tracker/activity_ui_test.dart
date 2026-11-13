@@ -157,6 +157,106 @@ void main() {
       await tester.pump();
     });
   }
+  testWidgets('back asks before leaving; ending keeps the wearable ready',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final source = ReplayActivitySource();
+    final c = ActivityTrackerController(
+      source: source,
+      storage: MemoryActivityStorage(),
+      observeLifecycle: false,
+    );
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: c,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ActivityTrackerPage(wearable: TestActivityWearable()),
+                ),
+              ),
+              child: const Text('Open tracker'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open tracker'));
+    // The connecting spinner never settles; pump past the route transition.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    source.still();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pump();
+    await tester.tap(find.text('Start tracking'));
+    await tester.pumpAndSettle();
+
+    // Ending the jump test saves the session and continues with a new one.
+    await tester.scrollUntilVisible(
+      find.text('Jump test'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Jump test'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('End jump session?'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('End session'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(c.mode, ActivityKind.steps);
+    expect(c.isTracking, isTrue);
+    expect(c.sessions.where((s) => s.endedAt != null), hasLength(1));
+    expect(find.text('TODAY’S STEPS'), findsOneWidget);
+
+    // Ending from the session list does the same and returns to the tracker.
+    await tester.tap(find.text('View sessions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Session in progress'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('End and save session'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('End and save session'));
+    await tester.pumpAndSettle();
+    expect(c.isTracking, isTrue);
+    expect(c.sessions.where((s) => s.endedAt != null), hasLength(2));
+    expect(source.closed, isFalse);
+    expect(find.text('TODAY’S STEPS'), findsOneWidget);
+
+    // Leaving the tracker during a session asks and can end it.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('End session'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(c.isTracking, isFalse);
+    expect(find.text('Open tracker'), findsOneWidget);
+    expect(source.closed, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    c.dispose();
+    await tester.pump();
+  });
   testWidgets(
       'English study inputs save an actual comparison and render in dark mode',
       (tester) async {

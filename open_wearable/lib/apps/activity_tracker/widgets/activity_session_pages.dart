@@ -9,6 +9,13 @@ import 'activity_widgets.dart';
 /// Stored workouts and the currently running session.
 class ActivitySessionsPage extends StatelessWidget {
   const ActivitySessionsPage({super.key});
+  static const routeName = 'activity-sessions';
+
+  /// Named, so a summary can return past this list to the tracker.
+  static Route<void> route() => MaterialPageRoute(
+        settings: const RouteSettings(name: routeName),
+        builder: (_) => const ActivitySessionsPage(),
+      );
   @override
   Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
         builder: (context, c, _) => ActivityLayout(
@@ -82,7 +89,8 @@ class ActivitySummaryPage extends StatelessWidget {
                 child: const Text('Export'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () =>
+                    live ? _backToTracker(context) : Navigator.pop(context),
                 child: Text(live ? 'Back to tracking' : 'Done'),
               ),
             ],
@@ -224,7 +232,10 @@ class ActivitySummaryPage extends StatelessWidget {
               if (live)
                 OutlinedButton(
                   onPressed: () async {
-                    await c.finish();
+                    // Saves this session and continues with a new one, so
+                    // the tracker stays connected and ready.
+                    await c.finishAndRestart();
+                    if (context.mounted) _backToTracker(context);
                   },
                   child: const Text('End and save session'),
                 ),
@@ -238,6 +249,16 @@ class ActivitySummaryPage extends StatelessWidget {
           );
         },
       );
+}
+
+/// Pops this summary and, if it was opened from the session list, that list.
+void _backToTracker(BuildContext context) {
+  var top = true;
+  Navigator.popUntil(context, (route) {
+    final stop = !top && route.settings.name != ActivitySessionsPage.routeName;
+    top = false;
+    return stop;
+  });
 }
 
 /// Reference-based evaluation for participants, speeds and execution styles.
