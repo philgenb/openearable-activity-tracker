@@ -165,7 +165,9 @@ void main() {
   test('real-world take-off: slow dip, push vibration, no still stance', () {
     // Shape of an ear-worn recording (2026-11-13): ~1 s countermovement,
     // single-sample dips below the free-fall threshold while pushing off and
-    // a fidgeting head before the jump. Expect one jump with ~0.37 s flight.
+    // a fidgeting head before the jump. The 2.4 dip is followed by another
+    // push sample, so take-off is the 7.7 -> 3.2 crossing. The 4.0/3.7 bump
+    // right after it is head oscillation and must not end the flight.
     final r = _Replay()..still();
     r.engine.select(ActivityKind.jumps);
     for (var i = 0; i < 100; i++) {
@@ -188,8 +190,44 @@ void main() {
     }
     r.still(1);
     expect(r.jumps, hasLength(1));
-    expect(r.jumps.single.flightSeconds, closeTo(0.37, 0.02));
+    // Take-off 0.67 ms before the 3.2 sample, landing 1.32 ms after the
+    // last free-fall sample: 0.39 s + both offsets.
+    expect(r.jumps.single.flightSeconds, closeTo(0.392, 0.001));
     expect(r.jumps.single.heightCm, isNotNull);
+  });
+  test('in-air bumps without impact neither split nor end the flight', () {
+    // Video comparison (2026-11-15): pulling the legs up lifts |a| at the
+    // head above the free-fall threshold mid-air. Only an impact lands.
+    final r = _Replay()..still();
+    r.engine.select(ActivityKind.jumps);
+    void flight(List<double> middle) {
+      r.still(1);
+      for (var i = 0; i < 10; i++) {
+        r.sample(15);
+      }
+      for (var i = 0; i < 20; i++) {
+        r.sample(0.5);
+      }
+      for (final v in middle) {
+        r.sample(v);
+      }
+      for (var i = 0; i < 18; i++) {
+        r.sample(0.5);
+      }
+      for (var i = 0; i < 6; i++) {
+        r.sample(18);
+      }
+      r.still(1);
+    }
+
+    flight([6, 7, 6]);
+    expect(r.jumps, hasLength(1));
+    expect(r.jumps.single.flightSeconds, closeTo(0.41, 0.01));
+    expect(r.jumps.single.heightCm, isNotNull);
+    // A long lift without impact is no landing: report it, but no height.
+    flight(List.filled(15, 6));
+    expect(r.jumps, hasLength(2));
+    expect(r.jumps.last.heightCm, isNull);
   });
   test('interpolates take-off and landing between samples', () {
     // Piecewise-linear profile: the 3.5 m/s² crossings fall between samples

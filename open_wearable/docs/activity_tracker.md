@@ -95,7 +95,9 @@ a low-acceleration flight interval and landing confirmation. Similar take-off
 and landing posture is assumed. It estimates ballistic flight height, not
 absolute head displacement. Take-off and landing are the interpolated crossings
 of a 3.5 m/s² free-fall threshold, so clipped impact peaks do not affect the
-height. Samples slower than 40 Hz and ambiguous landings produce an unavailable
+height. Take-off is the first crossing after the last push sample; only an
+impact ends the flight, so head oscillation after toe-off and in-air bumps do
+not shorten it. Samples slower than 40 Hz and ambiguous landings produce an unavailable
 height. A systematic flight-time offset (`flightOffset`, currently 0) is meant
 to be fitted against a reference measurement. Walking/running is not classified.
 

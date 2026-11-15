@@ -2,6 +2,14 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-15: Sprunghöhe gegen 240-fps-Video geprüft und Absprung korrigiert
+
+**Was:** Zwei Sprung-Sessions vom 13.11. (1 Person, 17 Sprünge) Frame für Frame mit Slow-Motion-Video verglichen. Danach den Absprung im Detektor umgebaut. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-vergleich-mit-slow-motion-video-13112026).
+
+**Warum:** Die App lag im Mittel 51 ms bei der Flugzeit (5 cm bei der Höhe) zu niedrig, einzelne Sprünge bis 180 ms. Die Roh-CSVs zeigen die Ursache: Nach dem Abdruck pendelt |a| bis 0,2 s um die Freifall-Schwelle. Der Fix vom 13.11. hat den Absprung deshalb zu spät gesetzt. Jetzt zählt die erste Unterschreitung nach dem letzten Abdruck-Sample, und nur ein Aufprall beendet den Flug.
+
+**Ergebnis:** Replay derselben Daten: MAE der Flugzeit 75 → 40 ms, Bias −51 → +20 ms, 17 statt 16 Sprünge mit Höhe. `flightOffset` bewusst nicht gefittet (nur 1 Person). 220 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet. Videos, Roh-CSVs und die Excel-Auswertung bleiben lokal.
+
 ## 2026-11-13: Sprung-Test am Earable und Session-Navigation
 
 **Was:** `feat/jump-height` auf den aktuellen `main` rebased. Erster Sprung-Test mit Hardware (1 Person, 4 Sprünge, ca. 100 Hz, keine Referenz): Die App zeigte keine einzige Höhe. Ursachen und Fix in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-hardware-test-13112026). Replay der Aufnahme: 3 von 3 gültigen Sprüngen erkannt.
