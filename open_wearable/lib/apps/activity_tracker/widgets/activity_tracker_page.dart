@@ -48,12 +48,8 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
               title: 'Activity Tracker',
               actions: [
                 OutlinedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ActivitySessionsPage(),
-                    ),
-                  ),
+                  onPressed: () =>
+                      Navigator.push(context, ActivitySessionsPage.route()),
                   child: const Text('View sessions'),
                 ),
                 ElevatedButton(
@@ -76,266 +72,275 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
           }
           if (!c.isTracking) return _ready(c);
           if (!c.connected || c.paused) {
-            return ActivityInterruptionView(controller: c);
+            return _ConfirmLeave(
+              controller: c,
+              child: ActivityInterruptionView(controller: c),
+            );
           }
           final latest = c.sessions.where((s) => s.endedAt != null).firstOrNull;
           final lastJump = c.current!.jumps.lastOrNull;
-          return ActivityLayout(
-            title: 'Activity Tracker',
-            appBarActions: [
-              PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'pause') c.pause();
-                  if (value == 'finish') {
-                    final session = await c.finish();
-                    if (context.mounted && session != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ActivitySummaryPage(session: session),
-                        ),
-                      );
-                    }
-                  }
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'pause',
-                    child: Text('Pause tracking'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'finish',
-                    child: Text('End session'),
-                  ),
-                ],
-              ),
-            ],
-            actions: [
-              OutlinedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ActivityStudyPage(session: c.current!),
-                  ),
-                ),
-                child: const Text('Study mode'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ActivitySessionsPage(),
-                  ),
-                ),
-                child: const Text('View sessions'),
-              ),
-            ],
-            children: [
-              _DeviceStrip(c),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : const Color(0xFF835B58),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'TODAY’S STEPS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        ActivityIcon('activity', color: Colors.white),
-                      ],
+          return _ConfirmLeave(
+            controller: c,
+            child: _trackingView(context, c, latest, lastJump),
+          );
+        },
+      );
+
+  Widget _trackingView(
+    BuildContext context,
+    ActivityTrackerController c,
+    ActivitySession? latest,
+    JumpAttempt? lastJump,
+  ) =>
+      ActivityLayout(
+        title: 'Activity Tracker',
+        appBarActions: [
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'pause') c.pause();
+              if (value == 'finish') {
+                final session = await c.finish();
+                if (context.mounted && session != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ActivitySummaryPage(session: session),
                     ),
-                    const SizedBox(height: 8),
+                  );
+                }
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'pause',
+                child: Text('Pause tracking'),
+              ),
+              const PopupMenuItem(
+                value: 'finish',
+                child: Text('End session'),
+              ),
+            ],
+          ),
+        ],
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ActivityStudyPage(session: c.current!),
+              ),
+            ),
+            child: const Text('Study mode'),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.push(context, ActivitySessionsPage.route()),
+            child: const Text('View sessions'),
+          ),
+        ],
+        children: [
+          _DeviceStrip(c),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : const Color(0xFF835B58),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Text(
-                      _number(c.todaySteps),
-                      style: const TextStyle(
+                      'TODAY’S STEPS',
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 52,
-                        height: 1.12,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    ActivityCaption(
-                      c.engine.calibrated
-                          ? 'Tracking since ${activityTime(c.current!.startedAt)}'
-                          : 'Stand still briefly to resume counting',
-                      color: Colors.white,
-                    ),
-                    const SizedBox(height: 8),
-                    ActivitySignal(c.signal, color: Colors.white, height: 34),
+                    ActivityIcon('activity', color: Colors.white),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  _number(c.todaySteps),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 52,
+                    height: 1.12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ActivityCaption(
+                  c.engine.calibrated
+                      ? 'Tracking since ${activityTime(c.current!.startedAt)}'
+                      : 'Stand still briefly to resume counting',
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 8),
+                ActivitySignal(c.signal, color: Colors.white, height: 34),
+              ],
+            ),
+          ),
+          if (c.storageError != null)
+            ActivityNotice(
+              'Storage needs attention',
+              c.storageError!,
+              warning: true,
+            ),
+          if (!c.engine.calibrated)
+            ActivityNotice(
+              'Stand still briefly',
+              'Keep your head relaxed while the motion signal settles.',
+            ),
+          if (c.mode != ActivityKind.steps)
+            ActivityCard(
+              onTap: () => _openExercise(context, c),
+              child: Row(
+                children: [
+                  ActivityIcon(_icon(c.mode), box: true),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Continue ${c.mode.label.toLowerCase()}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        ActivityCaption(
+                          '${c.repetitions} confirmed repetitions',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right),
+                ],
               ),
-              if (c.storageError != null)
-                ActivityNotice(
-                  'Storage needs attention',
-                  c.storageError!,
-                  warning: true,
+            ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Start an exercise',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-              if (!c.engine.calibrated)
-                ActivityNotice(
-                  'Stand still briefly',
-                  'Keep your head relaxed while the motion signal settles.',
+                SizedBox(width: 8),
+                Flexible(child: ActivityCaption('Choose manually')),
+              ],
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _exerciseCard(
+                  context,
+                  c,
+                  ActivityKind.squats,
+                  'Count complete repetitions',
                 ),
-              if (c.mode != ActivityKind.steps)
-                ActivityCard(
-                  onTap: () => _openExercise(context, c),
-                  child: Row(
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _exerciseCard(
+                  context,
+                  c,
+                  ActivityKind.pushUps,
+                  'Track your next set',
+                ),
+              ),
+            ],
+          ),
+          ActivityCard(
+            onTap: c.canCount && c.mode == ActivityKind.steps
+                ? () {
+                    c.startExercise(ActivityKind.jumps);
+                    _openExercise(context, c);
+                  }
+                : null,
+            child: Row(
+              children: [
+                const ActivityIcon('jump', box: true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ActivityIcon(_icon(c.mode), box: true),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Continue ${c.mode.label.toLowerCase()}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            ActivityCaption(
-                              '${c.repetitions} confirmed repetitions',
-                            ),
-                          ],
+                      const Text(
+                        'Jump test',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const Icon(Icons.chevron_right),
+                      const SizedBox(height: 4),
+                      ActivityCaption(
+                        lastJump?.heightCm != null
+                            ? 'Last estimate ${lastJump!.heightCm!.toStringAsFixed(1)} cm'
+                            : 'Detect jumps and estimate height',
+                      ),
                     ],
                   ),
                 ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Start an exercise',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+          ActivityCard(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    ActivitySummaryPage(session: latest ?? c.current!),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        latest == null ? 'Current session' : 'Last workout',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Flexible(child: ActivityCaption('Choose manually')),
-                  ],
-                ),
-              ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _exerciseCard(
-                      context,
-                      c,
-                      ActivityKind.squats,
-                      'Count complete repetitions',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _exerciseCard(
-                      context,
-                      c,
-                      ActivityKind.pushUps,
-                      'Track your next set',
-                    ),
-                  ),
-                ],
-              ),
-              ActivityCard(
-                onTap: c.canCount && c.mode == ActivityKind.steps
-                    ? () {
-                        c.startExercise(ActivityKind.jumps);
-                        _openExercise(context, c);
-                      }
-                    : null,
-                child: Row(
-                  children: [
-                    const ActivityIcon('jump', box: true),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Jump test',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ActivityCaption(
-                            lastJump?.heightCm != null
-                                ? 'Last estimate ${lastJump!.heightCm!.toStringAsFixed(1)} cm'
-                                : 'Detect jumps and estimate height',
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      ActivityCaption(
+                        latest == null
+                            ? 'Your results will appear here'
+                            : '${activityDate(latest.startedAt)} · ${activityTime(latest.startedAt)}',
                       ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-              ),
-              ActivityCard(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ActivitySummaryPage(session: latest ?? c.current!),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            latest == null ? 'Current session' : 'Last workout',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          ActivityCaption(
-                            latest == null
-                                ? 'Your results will appear here'
-                                : '${activityDate(latest.startedAt)} · ${activityTime(latest.startedAt)}',
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${(latest ?? c.current!).repetitions} reps',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '${(latest ?? c.current!).repetitions} reps',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const ActivityCaption(
-                'Tracking continues between screens while the app is in the foreground. Keep the app open during measurement.',
-              ),
-            ],
-          );
-        },
+              ],
+            ),
+          ),
+          const ActivityCaption(
+            'Tracking continues between screens while the app is in the foreground. Keep the app open during measurement.',
+          ),
+        ],
       );
 
   Widget _ready(ActivityTrackerController c) => ActivityLayout(
@@ -343,12 +348,8 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
         appBarActions: [
           IconButton(
             tooltip: 'View sessions',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ActivitySessionsPage(),
-              ),
-            ),
+            onPressed: () =>
+                Navigator.push(context, ActivitySessionsPage.route()),
             icon: const Icon(Icons.history),
           ),
         ],
@@ -633,189 +634,276 @@ class _ExercisePage extends StatelessWidget {
             );
           }
           if (!c.connected || c.paused) {
-            return ActivityInterruptionView(controller: c, exercise: true);
+            return _ConfirmLeave(
+              controller: c,
+              exercise: true,
+              child: ActivityInterruptionView(controller: c, exercise: true),
+            );
           }
           final jumpMode = c.mode == ActivityKind.jumps;
           final last = c.current!.jumps.lastOrNull;
-          return ActivityLayout(
-            title: c.mode.label,
-            actions: [
-              OutlinedButton(onPressed: c.pause, child: const Text('Pause')),
-              ElevatedButton(
-                onPressed: () {
-                  c.finishSet();
-                  Navigator.pop(context);
-                },
-                child: Text(jumpMode ? 'Finish test' : 'Finish set'),
-              ),
-            ],
-            children: [
-              _DeviceStrip(c),
-              ActivityCard(
-                padding: 18,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Column(
-                    children: [
-                      ActivityBadge(
-                        !c.engine.calibrated
-                            ? 'Stand still to calibrate'
-                            : jumpMode
-                                ? c.engine.phase
-                                : 'Counting repetitions',
-                      ),
-                      const SizedBox(height: 12),
-                      ActivityIcon(_icon(c.mode), size: 30),
-                      const SizedBox(height: 8),
-                      Text(
-                        jumpMode
-                            ? last?.heightCm?.toStringAsFixed(1) ?? '—'
-                            : '${c.repetitions}',
-                        style: const TextStyle(
-                          fontSize: 80,
-                          height: 1.15,
-                          fontWeight: FontWeight.w700,
+          return _ConfirmLeave(
+            controller: c,
+            exercise: true,
+            child: ActivityLayout(
+              title: c.mode.label,
+              actions: [
+                OutlinedButton(onPressed: c.pause, child: const Text('Pause')),
+                ElevatedButton(
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    // The jump test's End session saves the session and
+                    // continues with a fresh one on the same wearable.
+                    if (jumpMode) {
+                      await c.finishAndRestart();
+                    } else {
+                      c.finishSet();
+                    }
+                    navigator.pop();
+                  },
+                  child: Text(jumpMode ? 'End session' : 'Finish set'),
+                ),
+              ],
+              children: [
+                _DeviceStrip(c),
+                ActivityCard(
+                  padding: 18,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        ActivityBadge(
+                          !c.engine.calibrated
+                              ? 'Stand still to calibrate'
+                              : jumpMode
+                                  ? c.engine.phase
+                                  : 'Counting repetitions',
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      ActivityCaption(
-                        jumpMode ? 'cm · estimated height' : 'repetitions',
-                      ),
-                      const SizedBox(height: 12),
-                      if (jumpMode)
+                        const SizedBox(height: 12),
+                        ActivityIcon(_icon(c.mode), size: 30),
+                        const SizedBox(height: 8),
                         Text(
-                          c.current!.bestHeightCm == null
-                              ? 'Your next jump will appear here'
-                              : 'Session best ${c.current!.bestHeightCm!.toStringAsFixed(1)} cm',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.primary,
+                          jumpMode
+                              ? last?.heightCm?.toStringAsFixed(1) ?? '—'
+                              : '${c.repetitions}',
+                          style: const TextStyle(
+                            fontSize: 80,
+                            height: 1.15,
                             fontWeight: FontWeight.w700,
-                          ),
-                        )
-                      else ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(
-                            4,
-                            (i) => Container(
-                              width: 38,
-                              height: 4,
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(
-                                      alpha: i <
-                                              (c.engine.phase ==
-                                                      'Returning to start'
-                                                  ? 3
-                                                  : c.engine.phase == 'Lowering'
-                                                      ? 2
-                                                      : 1)
-                                          ? 1
-                                          : 0.16,
-                                    ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
                         ActivityCaption(
-                          c.engine.phase,
-                          color: Theme.of(context).colorScheme.primary,
+                          jumpMode ? 'cm · estimated height' : 'repetitions',
                         ),
+                        const SizedBox(height: 12),
+                        if (jumpMode)
+                          Text(
+                            c.current!.bestHeightCm == null
+                                ? 'Your next jump will appear here'
+                                : 'Session best ${c.current!.bestHeightCm!.toStringAsFixed(1)} cm',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        else ...[
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              4,
+                              (i) => Container(
+                                width: 38,
+                                height: 4,
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 3),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(
+                                        alpha: i <
+                                                (c.engine.phase ==
+                                                        'Returning to start'
+                                                    ? 3
+                                                    : c.engine.phase ==
+                                                            'Lowering'
+                                                        ? 2
+                                                        : 1)
+                                            ? 1
+                                            : 0.16,
+                                      ),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ActivityCaption(
+                            c.engine.phase,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              if (!jumpMode) ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: ActivityMetric(
-                        'Current set',
-                        '${c.currentSetNumber}',
-                        detail: 'Complete cycles only',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ActivityMetric(
-                        'Elapsed',
-                        activityDuration(c.setSeconds),
-                        detail: 'Tracking active',
-                      ),
-                    ),
-                  ],
-                ),
-                AppSectionCard(
-                  title: 'Movement',
-                  subtitle: c.engine.quality,
-                  child: Column(
+                if (!jumpMode) ...[
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ActivitySignal(c.signal),
-                      const SizedBox(height: 10),
-                      ActivityCaption(
-                        c.mode == ActivityKind.pushUps
-                            ? 'Hold the start position once, then continue at your own pace. No pause is needed between repetitions. Keep your head aligned with your body.'
-                            : 'Hold the start position briefly. Lower and return fully; keep your head aligned with your body.',
+                      Expanded(
+                        child: ActivityMetric(
+                          'Current set',
+                          '${c.currentSetNumber}',
+                          detail: 'Complete cycles only',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ActivityMetric(
+                          'Elapsed',
+                          activityDuration(c.setSeconds),
+                          detail: 'Tracking active',
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ] else ...[
-                const ActivityNotice(
-                  'Jump straight up',
-                  'Begin from a still position. Keep take-off and landing posture similar. Height uses flight time and is an estimate.',
-                ),
-                AppSectionCard(
-                  title: 'Recent attempts',
-                  child: c.current!.jumps.isEmpty
-                      ? const ActivityCaption(
-                          'Stand still briefly, then jump and land in place.',
-                        )
-                      : Column(
-                          children: c.current!.jumps.reversed
-                              .take(5)
-                              .map(
-                                (j) => ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    'Jump ${c.current!.jumps.indexOf(j) + 1}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  subtitle: ActivityCaption(
-                                    j.reason ??
-                                        'Good signal · flight ${j.flightSeconds.toStringAsFixed(2)} s',
-                                  ),
-                                  trailing: Text(
-                                    j.heightCm == null
-                                        ? '—'
-                                        : '${j.heightCm!.toStringAsFixed(1)} cm',
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                  AppSectionCard(
+                    title: 'Movement',
+                    subtitle: c.engine.quality,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ActivitySignal(c.signal),
+                        const SizedBox(height: 10),
+                        ActivityCaption(
+                          c.mode == ActivityKind.pushUps
+                              ? 'Hold the start position once, then continue at your own pace. No pause is needed between repetitions. Keep your head aligned with your body.'
+                              : 'Hold the start position briefly. Lower and return fully; keep your head aligned with your body.',
                         ),
-                ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const ActivityNotice(
+                    'Jump straight up',
+                    'Begin from a still position. Keep take-off and landing posture similar. Height uses flight time and is an estimate.',
+                  ),
+                  AppSectionCard(
+                    title: 'Recent attempts',
+                    child: c.current!.jumps.isEmpty
+                        ? const ActivityCaption(
+                            'Stand still briefly, then jump and land in place.',
+                          )
+                        : Column(
+                            children: c.current!.jumps.reversed
+                                .take(5)
+                                .map(
+                                  (j) => ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: Text(
+                                      'Jump ${c.current!.jumps.indexOf(j) + 1}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    subtitle: ActivityCaption(
+                                      j.reason ??
+                                          'Good signal · flight ${j.flightSeconds.toStringAsFixed(2)} s',
+                                    ),
+                                    trailing: Text(
+                                      j.heightCm == null
+                                          ? '—'
+                                          : '${j.heightCm!.toStringAsFixed(1)} cm',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  ),
+                ],
               ],
-            ],
+            ),
           );
         },
+      );
+}
+
+/// Back navigation during a session asks instead of silently leaving it on.
+/// Exercise pages end only the test or set and return to the overview; the
+/// overview can end the whole tracking session or keep it running.
+class _ConfirmLeave extends StatelessWidget {
+  const _ConfirmLeave({
+    required this.controller,
+    required this.child,
+    this.exercise = false,
+  });
+  final ActivityTrackerController controller;
+  final Widget child;
+  final bool exercise;
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) async {
+          if (didPop) return;
+          final c = controller;
+          final test = c.mode == ActivityKind.jumps;
+          final end = await showDialog<bool>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+              title: Text(
+                !exercise
+                    ? 'End session?'
+                    : test
+                        ? 'End jump session?'
+                        : 'Finish ${c.mode.label.toLowerCase()} set?',
+              ),
+              content: Text(
+                exercise
+                    ? test
+                        ? 'This session is saved and a new one starts on the overview.'
+                        : 'Your results are saved and you return to the overview.'
+                    : 'Your session keeps recording until you end it.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialog),
+                  child: const Text('Cancel'),
+                ),
+                if (!exercise)
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialog, false),
+                    child: const Text('Keep tracking'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialog, true),
+                  child: Text(exercise && !test ? 'Finish set' : 'End session'),
+                ),
+              ],
+            ),
+          );
+          if (end == null || !context.mounted) return;
+          final navigator = Navigator.of(context);
+          if (exercise && test) {
+            await c.finishAndRestart();
+          } else if (exercise) {
+            c.finishSet();
+          } else if (end) {
+            await c.finish();
+          }
+          navigator.pop();
+        },
+        child: child,
       );
 }
 

@@ -149,7 +149,16 @@ class ActivityEngine {
             ? 'Low sample rate'
             : 'Steady signal';
     final jump = (kind == ActivityKind.steps || kind == ActivityKind.jumps)
-        ? _jumps.add(s.seconds, magnitude, angularSpeed, dt, clipped)
+        ? _jumps.add(
+            s.seconds,
+            magnitude,
+            angularSpeed,
+            dt,
+            gravity: _gravityMagnitude,
+            // In jump mode the user announced jumps; only step tracking needs
+            // a still stance first to keep running from looking like jumps.
+            armed: kind == ActivityKind.jumps,
+          )
         : null;
     if (kind == ActivityKind.steps) {
       phase = 'Tracking steps';
@@ -284,80 +293,130 @@ class _RepetitionDetector {
   }
 }
 
+/// Flight-time jump detector: h = g * t² / 8.
+///
+/// Take-off is the first free-fall crossing after the last push sample; the
+/// flight ends at the last free-fall up-crossing before the landing impact.
+/// Right after toe-off the head still oscillates around the threshold for up
+/// to 0.2 s, and in-air leg movement can lift it briefly, so neither may end
+/// the flight. A sample above the impact level within [_minFlight] of take-off
+/// means the feet are still pushing and restarts the take-off search.
+///
+/// Only threshold crossing times enter the height, so saturated take-off or
+/// landing peaks do not affect it. Crossings are interpolated between samples.
+/// Compared with 240 fps video (1 person, 17 jumps, 15.11.2026) this halved
+/// the flight-time error versus the previous last-crossing take-off.
 class _JumpDetector {
+  static const _freeFall = 3.5, _impact = 12.3;
+  static const _armWindow = 2.0, _minFlight = 0.08, _landingWait = 0.12;
+
+  /// Systematic flight-time correction in seconds, to be fitted against a
+  /// reference once jumps with uniform technique exist. The first video
+  /// comparison left a bias of about +14 ms, within the reading error.
+  static const flightOffset = 0.0;
+
   double _still = 0,
       _armedAt = -100,
+      _push = -100,
       _takeoff = -100,
       _endFlight = -100,
-      _cooldown = -100;
-  bool _airborne = false, _clipped = false, _slow = false;
-  bool get inMotion => _airborne || _endFlight > 0;
+      _cooldown = -100,
+      _previousTime = -100,
+      _previousMagnitude = ActivityEngine.gravity;
+  bool _airborne = false, _slow = false;
+  bool get inMotion => _airborne;
   void reset() {
     _still = 0;
-    _armedAt = _takeoff = _endFlight = _cooldown = -100;
-    _airborne = _clipped = _slow = false;
+    _armedAt = _push = _takeoff = _endFlight = _cooldown = -100;
+    _airborne = _slow = false;
+  }
+
+  /// Time between the previous and current sample at which the magnitude
+  /// crosses the free-fall threshold.
+  double _crossing(double t, double magnitude) {
+    final m0 = _previousMagnitude;
+    if (m0 == magnitude) return t;
+    final f = ((m0 - _freeFall) / (m0 - magnitude)).clamp(0.0, 1.0);
+    return _previousTime + (t - _previousTime) * f;
   }
 
   JumpAttempt? add(
     double t,
     double magnitude,
     double gyro,
+    double dt, {
+    double gravity = ActivityEngine.gravity,
+    bool armed = false,
+  }) {
+    final result = _add(t, magnitude, gyro, dt, gravity, armed);
+    _previousTime = t;
+    _previousMagnitude = magnitude;
+    return result;
+  }
+
+  JumpAttempt? _add(
+    double t,
+    double magnitude,
+    double gyro,
     double dt,
-    bool clipped,
+    double gravity,
+    bool armed,
   ) {
     if (t < _cooldown) return null;
-    _still = (magnitude - ActivityEngine.gravity).abs() < 0.8 && gyro < 0.3
-        ? _still + dt
-        : 0;
-    if (!_airborne && _endFlight < 0) {
-      if (_still >= 0.5) _armedAt = t;
-      if (t - _armedAt < 0.7 && magnitude > 12.3) {
-        _takeoff = t;
-        _clipped |= clipped;
-      }
-      if (t - _takeoff < 0.5 && magnitude < 3.5) {
+    // Calibrated gravity: IMU scale errors of a few percent are common.
+    _still = (magnitude - gravity).abs() < 0.8 && gyro < 0.3 ? _still + dt : 0;
+    if (!_airborne) {
+      if (armed || _still >= 0.5) _armedAt = t;
+      // A countermovement (dip, then push) takes about 1 s after standing.
+      if (t - _armedAt < _armWindow && magnitude > _impact) _push = t;
+      if (t - _push < 0.5 && magnitude < _freeFall) {
         _airborne = true;
-        _takeoff = t;
-        _clipped |= clipped;
+        _takeoff = _crossing(t, magnitude);
+        _endFlight = -100;
         _slow = dt > 0.025;
       }
       return null;
     }
-    _clipped |= clipped;
     _slow |= dt > 0.025;
-    if (_airborne && magnitude >= 3.5) {
-      _airborne = false;
-      _endFlight = t;
+    if (magnitude >= _freeFall && _previousMagnitude < _freeFall) {
+      _endFlight = _crossing(t, magnitude);
     }
-    if (_airborne && t - _takeoff > 0.85) {
-      reset();
-      return null;
+    if (magnitude > _impact) {
+      if (_endFlight - _takeoff < _minFlight) {
+        // Still pushing off: the dip was vibration, not flight.
+        _airborne = false;
+        _push = t;
+        return null;
+      }
+      return _finish(t, landed: true);
     }
-    if (_endFlight > 0 && (magnitude > 12.3 || t - _endFlight > 0.12)) {
-      final flight = _endFlight - _takeoff;
-      final landed = magnitude > 12.3;
-      final valid =
-          flight >= 0.12 && flight <= 0.85 && landed && !_clipped && !_slow;
-      final result = flight >= 0.08
-          ? JumpAttempt(
-              at: t,
-              flightSeconds: flight,
-              heightCm: valid
-                  ? ActivityEngine.gravity * flight * flight / 8 * 100
-                  : null,
-              reason: valid
-                  ? null
-                  : _clipped
-                      ? 'Impact clipped'
-                      : _slow
-                          ? 'Sample rate too low'
-                          : 'Unclear take-off or landing',
-            )
-          : null;
-      reset();
-      _cooldown = t + 0.8;
-      return result;
+    if (magnitude >= _freeFall && t - _endFlight > _landingWait) {
+      if (_endFlight - _takeoff < _minFlight) {
+        _airborne = false; // Brief dip without a jump; keep the push window.
+        return null;
+      }
+      return _finish(t, landed: false);
     }
+    if (t - _takeoff > 0.85 + _landingWait) reset();
     return null;
+  }
+
+  JumpAttempt? _finish(double t, {required bool landed}) {
+    final flight = _endFlight - _takeoff - flightOffset;
+    final valid = flight >= 0.12 && flight <= 0.85 && landed && !_slow;
+    final result = JumpAttempt(
+      at: t,
+      flightSeconds: flight,
+      heightCm:
+          valid ? ActivityEngine.gravity * flight * flight / 8 * 100 : null,
+      reason: valid
+          ? null
+          : _slow
+              ? 'Sample rate too low'
+              : 'Unclear take-off or landing',
+    );
+    reset();
+    _cooldown = t + 0.8;
+    return result;
   }
 }

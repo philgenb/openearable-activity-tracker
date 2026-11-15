@@ -2,6 +2,28 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-15: Sprunghöhe gegen 240-fps-Video geprüft und Absprung korrigiert
+
+**Was:** Zwei Sprung-Sessions vom 13.11. (1 Person, 17 Sprünge) Frame für Frame mit Slow-Motion-Video verglichen. Danach den Absprung im Detektor umgebaut. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-vergleich-mit-slow-motion-video-13112026).
+
+**Warum:** Die App lag im Mittel 51 ms bei der Flugzeit (5 cm bei der Höhe) zu niedrig, einzelne Sprünge bis 180 ms. Die Roh-CSVs zeigen die Ursache: Nach dem Abdruck pendelt |a| bis 0,2 s um die Freifall-Schwelle. Der Fix vom 13.11. hat den Absprung deshalb zu spät gesetzt. Jetzt zählt die erste Unterschreitung nach dem letzten Abdruck-Sample, und nur ein Aufprall beendet den Flug.
+
+**Ergebnis:** Replay derselben Daten: MAE der Flugzeit 75 → 40 ms, Bias −51 → +20 ms, 17 statt 16 Sprünge mit Höhe. `flightOffset` bewusst nicht gefittet (nur 1 Person). 220 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet. Videos, Roh-CSVs und die Excel-Auswertung bleiben lokal.
+
+## 2026-11-13: Sprung-Test am Earable und Session-Navigation
+
+**Was:** `feat/jump-height` auf den aktuellen `main` rebased. Erster Sprung-Test mit Hardware (1 Person, 4 Sprünge, ca. 100 Hz, keine Referenz): Die App zeigte keine einzige Höhe. Ursachen und Fix in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-hardware-test-13112026). Replay der Aufnahme: 3 von 3 gültigen Sprüngen erkannt.
+
+Außerdem drei Navigationsfehler behoben:
+
+- Zurück aus dem Sprung-Test ließ den Modus auf „Jumps“, danach war keine Übung mehr wählbar. Der Sprung-Test hat unten nur noch „Pause“ und „End session“, Zurück fragt dasselbe. „End session“ speichert die Session und startet sofort eine neue auf demselben, schon kalibrierten Earable. Man landet direkt auf der Schritt-Übersicht. „End and save session“ in der Session-Ansicht macht dasselbe. Das komplette Tracking beendet man über die Übersicht (Menü oder Zurück-Dialog). Entscheidung nach zwei Gerätetests: Für Sprungmessungen soll eine Session ein Testblock sein, der sich ohne Neuverbinden abschließen lässt.
+- Session beenden trennte das Earable, man musste neu verbinden. Jetzt bleibt es verbunden und kalibriert, die nächste Session startet direkt. Freigegeben wird es erst beim Verlassen des Trackers.
+- „Back to tracking“ in der Zusammenfassung ging nur zur Session-Liste zurück. Jetzt springt es bis zum Tracker.
+
+**Warum so:** Die Session selbst läuft bewusst app-weit weiter, damit Schritte zwischen Screens nicht verloren gehen. Deshalb kein automatisches Beenden beim Zurück, sondern eine Frage.
+
+**Ergebnis:** Synthetischer Regressionstest für die reale Signalform, Widget-Test für den ganzen Zurück- und Beenden-Ablauf. 219 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet.
+
 ## 2026-11-10: Push-up-Erkennung leicht empfindlicher eingestellt
 
 Absenkschwelle 0,020 → 0,019 m/s und Rückkehrbeginn 0,015 → 0,013 m/s.
@@ -67,6 +89,20 @@ Formatierungsprüfung der geänderten Dart-Dateien ohne Änderungen.
 
 **Offen:** Hardware-/Nutzerevaluation, belastbare Parameter und Abgrenzung von
 Kopfbewegungen gegenüber echten Körperzyklen. Kein Nachweis von Ausführungsqualität.
+
+## 2026-11-07: Sprunghöhe überarbeitet
+
+**Was:** Phils Sprungdetektor aus `feat/activity-tracker` übernommen und an zwei Stellen korrigiert. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md).
+
+**Warum:** Der Prototyp verwarf jeden Sprung, sobald der Sensor bei ±2 g abschnitt. Beim Landen am Kopf passiert das fast immer, die App hätte also kaum je eine Höhe angezeigt. Für die Flugzeit-Methode zählen aber nur die Zeitpunkte, an denen die Beschleunigung die Freifall-Schwelle kreuzt, und die liegen weit unter 2 g. Außerdem werden diese Zeitpunkte jetzt zwischen zwei Samples interpoliert, weil 10 ms Fehler bei 100 Hz bis zu ca. 1,2 cm Höhe ausmachen. Verworfen: Höhe über die Abhebegeschwindigkeit (Abdruck wird ebenfalls abgeschnitten) und doppelte Integration (Drift).
+
+**Ergebnis:** Nur synthetische Tests. Flugzeit mit Interpolation innerhalb 1 ms, ohne 7 ms daneben. Keine Messung mit Hardware oder Personen.
+
+**Offen:**
+
+- Evaluation mit Slow-Motion-Video als Referenz, Plan steht im Algorithmus-Dokument.
+- `flightOffset` gegen die Referenz fitten.
+- Messbereich der OE2-IMU prüfen.
 
 ## 2026-11-06: Android-Build auf Java 25 umgestellt
 

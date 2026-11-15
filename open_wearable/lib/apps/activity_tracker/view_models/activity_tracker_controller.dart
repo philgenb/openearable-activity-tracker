@@ -210,21 +210,30 @@ class ActivityTrackerController extends ChangeNotifier
     _notify();
   }
 
+  /// Ends the session but keeps the wearable streaming, so a new session can
+  /// start without reconnecting. The tracker page releases it when left.
   Future<ActivitySession?> finish() async {
     if (current == null) return null;
     finishSet();
     final result = current!;
     result.endedAt = DateTime.now();
     current = null;
-    deviceId = null;
     await checkpoint();
     try {
       await storage.closeTrace();
     } catch (e) {
       storageError = 'Motion trace could not be saved. $e';
     }
-    await source.close();
     _notify();
+    return result;
+  }
+
+  /// Saves the current session and immediately starts the next one on the
+  /// same, still calibrated wearable. If the signal dropped meanwhile, the
+  /// readiness screen takes over instead.
+  Future<ActivitySession?> finishAndRestart() async {
+    final result = await finish();
+    await start();
     return result;
   }
 

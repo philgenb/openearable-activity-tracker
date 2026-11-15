@@ -77,6 +77,10 @@ void main() {
     final session = await c.finish();
     expect(session!.endedAt, isNotNull);
     expect(c.isTracking, isFalse);
+    // Ending a session keeps the wearable ready for the next one.
+    expect(source.closed, isFalse);
+    expect(c.deviceId, isNotNull);
+    await c.releasePreparedDevice();
     expect(source.closed, isTrue);
     c.dispose();
   });

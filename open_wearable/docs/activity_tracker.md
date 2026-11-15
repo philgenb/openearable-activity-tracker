@@ -13,13 +13,21 @@ phone screens on the core page of the [approved Figma file](https://www.figma.co
    starting position briefly, then perform complete down/up cycles. Finish each
    set before starting another exercise. Exercise sets suppress step counting.
 4. Jump test detects take-off/free flight/landing and displays an estimated
-   height only when the timing and signal pass the quality checks. Jumps can
-   also be detected between exercises after a still preparation period.
+   height only when the timing and signal pass the quality checks. In the jump
+   test no still stance is needed; between exercises jumps are only detected
+   after a still preparation period.
+   The jump test offers Pause and End session. Ending it (or confirming the
+   back dialog) saves the session and immediately starts a new one on the
+   same calibrated wearable, returning to the overview. Back from the
+   overview asks whether to keep tracking or end tracking entirely.
 5. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
    incomplete movements and require still calibration before counting resumes.
-6. End the session from the overview menu. History, reference trials, JSON and
-   CSV exports are available in Sessions. Leaving the mini-app does not end an
-   active session; leaving readiness without starting releases its sensors.
+6. End tracking from the overview menu or back dialog. "End and save session"
+   in a live summary saves and starts the next session, like the jump test.
+   Ending keeps the wearable streaming, so a new session starts without
+   reconnecting. History, reference trials, JSON and CSV exports are available
+   in Sessions; "Back to tracking" returns past the list to the tracker.
+   Leaving the tracker without an active session releases its sensors.
    The app tile also opens without a connected wearable, so history and an
    interrupted session remain accessible offline.
 
@@ -85,9 +93,13 @@ a full body cycle cannot always be inferred from the ear.
 Jump height uses `h = g * flight_time² / 8`, with still preparation, propulsion,
 a low-acceleration flight interval and landing confirmation. Similar take-off
 and landing posture is assumed. It estimates ballistic flight height, not
-absolute head displacement. Samples slower than 40 Hz, ambiguous landings and
-clipped impacts produce an unavailable height. The ±2 g clipping heuristic is
-conservative for the OE2 compact format. Walking/running is not classified.
+absolute head displacement. Take-off and landing are the interpolated crossings
+of a 3.5 m/s² free-fall threshold, so clipped impact peaks do not affect the
+height. Take-off is the first crossing after the last push sample; only an
+impact ends the flight, so head oscillation after toe-off and in-air bumps do
+not shorten it. Samples slower than 40 Hz and ambiguous landings produce an unavailable
+height. A systematic flight-time offset (`flightOffset`, currently 0) is meant
+to be fitted against a reference measurement. Walking/running is not classified.
 
 Synthetic replay tests verify implementation behavior, **not real-world
 accuracy**. No earable hardware or participant dataset was available during
