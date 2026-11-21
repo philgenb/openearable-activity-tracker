@@ -8,28 +8,25 @@ phone screens on the core page of the [approved Figma file](https://www.figma.co
 ## Flow and scope
 
 1. Connect an OpenEarable with three-axis accelerometer and gyroscope streams.
-2. Check the fit and stand still for 1.5 seconds. Start tracking once calibrated.
-3. Steps continue across mini-app navigation. Choose Squats or Push-ups, hold the
-   starting position briefly, then perform complete down/up cycles. Finish each
-   set before starting another exercise. Exercise sets suppress step counting.
-4. Jump test detects take-off/free flight/landing and displays an estimated
-   height only when the timing and signal pass the quality checks. In the jump
-   test no still stance is needed; between exercises jumps are only detected
-   after a still preparation period.
-   The jump test offers Pause and End session. Ending it (or confirming the
-   back dialog) saves the session and immediately starts a new one on the
-   same calibrated wearable, returning to the overview. Back from the
-   overview asks whether to keep tracking or end tracking entirely.
-5. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
+2. Check the fit and stand still for 1.5 seconds.
+3. The overview records nothing. Choose one of four activities: Steps, Squats,
+   Push-ups or Jump test. Each tile starts its own session (`ActivitySession.kind`).
+4. Squats and push-ups: hold the starting position briefly, then perform
+   complete down/up cycles. The session holds one set.
+5. Jump test detects take-off/free flight/landing and displays an estimated
+   height only when the timing and signal pass the quality checks. No still
+   stance is needed. Only jump sessions record jumps.
+6. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
    incomplete movements and require still calibration before counting resumes.
-6. End tracking from the overview menu or back dialog. "End and save session"
-   in a live summary saves and starts the next session, like the jump test.
-   Ending keeps the wearable streaming, so a new session starts without
-   reconnecting. History, reference trials, JSON and CSV exports are available
-   in Sessions; "Back to tracking" returns past the list to the tracker.
-   Leaving the tracker without an active session releases its sensors.
+7. "End session" or back (after a confirmation) ends exactly that session and
+   returns to the overview. A session never keeps running in the background.
+   The wearable stays streaming and calibrated, so the next activity starts
+   without reconnecting. Leaving the tracker ends any running session and
+   releases its sensors.
+8. History, reference trials, JSON and CSV exports are available in Sessions.
    The app tile also opens without a connected wearable, so history and an
-   interrupted session remain accessible offline.
+   interrupted session remain accessible offline. Sessions saved before
+   `kind` existed are listed as "Workout".
 
 There is no ML, automatic exercise selection, walking/running/stairs classifier
 or microphone processing in this implementation. The user selects the exercise.

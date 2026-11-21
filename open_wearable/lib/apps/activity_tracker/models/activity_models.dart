@@ -141,6 +141,7 @@ class ActivitySession {
     required this.startedAt,
     required this.deviceName,
     this.endedAt,
+    this.kind,
     this.steps = 0,
     this.interrupted = false,
     this.calibration = const {},
@@ -153,6 +154,10 @@ class ActivitySession {
   final String id, deviceName;
   final Map<String, double> calibration;
   final DateTime startedAt;
+
+  /// The one activity this session records; null for sessions saved before
+  /// sessions were tied to a single activity.
+  final ActivityKind? kind;
   DateTime? endedAt;
   int steps;
   bool interrupted;
@@ -169,6 +174,7 @@ class ActivitySession {
         'startedAt': startedAt.toIso8601String(),
         'endedAt': endedAt?.toIso8601String(),
         'deviceName': deviceName,
+        'kind': kind?.name,
         'steps': steps,
         'interrupted': interrupted,
         'calibration': calibration,
@@ -181,6 +187,7 @@ class ActivitySession {
         startedAt: DateTime.parse(j['startedAt']),
         endedAt: j['endedAt'] == null ? null : DateTime.parse(j['endedAt']),
         deviceName: j['deviceName'],
+        kind: j['kind'] == null ? null : ActivityKind.values.byName(j['kind']),
         steps: j['steps'] ?? 0,
         interrupted: j['interrupted'] ?? false,
         calibration: (j['calibration'] as Map<String, dynamic>? ?? {})

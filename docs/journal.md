@@ -2,6 +2,20 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-17: Eine Session pro Aktivität
+
+**Was:** Der Tracker legt Sessions nur noch an, wenn man eine Aktivität antippt. Die Übersicht hat vier Kacheln: Steps, Squats, Push-ups, Jump test. Jede startet ihre eigene Session. „End session“ oder Zurück (mit Rückfrage) beendet sie und führt zurück zur Übersicht. Die Übersicht zählt und speichert nichts. Wer den Tracker verlässt, beendet eine noch laufende Session und gibt das Earable frei. Die Session-Liste zeigt pro Eintrag die Aktivität und das passende Ergebnis.
+
+**Warum:** Am Gerätetest vom 17.11. lagen nach kurzer Zeit mehrere nie beendete Sessions in der Liste. Ursache war der Ablauf vom 13.11.: „Start tracking“ öffnete eine app-weite Schritt-Session, und jedes Ende eines Sprung-Tests startete sofort die nächste. So lief praktisch immer eine Session im Hintergrund, auch ohne dass jemand etwas messen wollte. Die Entscheidung vom 13.11. („Session läuft app-weit weiter“) ist damit ersetzt.
+
+**Verworfen:** Tagesschritte auf der Übersicht ohne Session weiterzählen. Dann gäbe es Schritte ohne Roh-CSV, und die Schritt-Auswertung bräuchte doch wieder einen eigenen Modus. Schritte sind jetzt eine Aktivität wie die anderen. „Today“ zählt nur Schritte aus Schritt-Sessions.
+
+**Nebenbei:** Sprünge landen nur noch in Sprung-Sessions. Vorher konnte die Schritt-Session nach einer Ruhephase auch Sprünge speichern.
+
+**Ergebnis:** Controller- und Widget-Tests für den neuen Ablauf (Übersicht legt keine Session an, Zurück beendet genau die eine Session, Verlassen schließt alles). `flutter analyze` ohne Befund, Activity-Tracker-Tests grün. Ältere gespeicherte Sessions haben keine Aktivität und erscheinen als „Workout“.
+
+Sprungdaten desselben Tests: [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#gerätetest-ohne-referenz-17112026).
+
 ## 2026-11-15: Sprunghöhe gegen 240-fps-Video geprüft und Absprung korrigiert
 
 **Was:** Zwei Sprung-Sessions vom 13.11. (1 Person, 17 Sprünge) Frame für Frame mit Slow-Motion-Video verglichen. Danach den Absprung im Detektor umgebaut. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-vergleich-mit-slow-motion-video-13112026).

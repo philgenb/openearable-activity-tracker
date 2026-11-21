@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../models/activity_models.dart';
 
 /// Icon assets exported from the approved Figma design.
 class ActivityIcon extends StatelessWidget {
@@ -303,6 +304,23 @@ class ActivityLayout extends StatelessWidget {
       );
 }
 
+String activityIconName(ActivityKind? kind) => switch (kind) {
+      ActivityKind.squats => 'squat',
+      ActivityKind.pushUps => 'pushup',
+      ActivityKind.jumps => 'jump',
+      ActivityKind.steps || null => 'activity',
+    };
+
+/// One-line result of a session, focused on its activity.
+String activitySessionResult(ActivitySession s) => switch (s.kind) {
+      ActivityKind.steps => '${s.steps} steps',
+      ActivityKind.squats || ActivityKind.pushUps => '${s.repetitions} reps',
+      ActivityKind.jumps => s.bestHeightCm == null
+          ? '${s.jumps.length} jumps'
+          : '${s.jumps.length} jumps · best ${s.bestHeightCm!.toStringAsFixed(1)} cm',
+      null =>
+        '${s.steps} steps · ${s.repetitions} reps · ${s.jumps.length} jumps',
+    };
 String activityDuration(int seconds) =>
     '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
 String activityTime(DateTime time) =>

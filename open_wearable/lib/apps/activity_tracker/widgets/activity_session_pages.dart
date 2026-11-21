@@ -9,13 +9,8 @@ import 'activity_widgets.dart';
 /// Stored workouts and the currently running session.
 class ActivitySessionsPage extends StatelessWidget {
   const ActivitySessionsPage({super.key});
-  static const routeName = 'activity-sessions';
-
-  /// Named, so a summary can return past this list to the tracker.
-  static Route<void> route() => MaterialPageRoute(
-        settings: const RouteSettings(name: routeName),
-        builder: (_) => const ActivitySessionsPage(),
-      );
+  static Route<void> route() =>
+      MaterialPageRoute(builder: (_) => const ActivitySessionsPage());
   @override
   Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
         builder: (context, c, _) => ActivityLayout(
@@ -24,7 +19,7 @@ class ActivitySessionsPage extends StatelessWidget {
             if (c.sessions.isEmpty)
               const ActivityNotice(
                 'No sessions yet',
-                'Start tracking to save your steps, exercise sets and jump attempts.',
+                'Choose an activity to save your steps, exercise sets and jump attempts.',
               ),
             for (final s in c.sessions)
               ActivityCard(
@@ -36,20 +31,18 @@ class ActivitySessionsPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const ActivityIcon('activity', box: true),
+                    ActivityIcon(activityIconName(s.kind), box: true),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${activityDate(s.startedAt)} · ${activityTime(s.startedAt)}',
+                            '${s.kind?.label ?? 'Workout'} · ${activityDate(s.startedAt)} · ${activityTime(s.startedAt)}',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 5),
-                          ActivityCaption(
-                            '${s.steps} steps · ${s.repetitions} reps · ${s.jumps.length} jumps',
-                          ),
+                          ActivityCaption(activitySessionResult(s)),
                           if (s.endedAt == null || s.interrupted)
                             ActivityCaption(
                               s.interrupted
@@ -75,7 +68,6 @@ class ActivitySummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
         builder: (context, c, _) {
-          final live = identical(c.current, session);
           final duration = (session.endedAt ?? DateTime.now())
               .difference(session.startedAt)
               .inSeconds;
@@ -89,24 +81,27 @@ class ActivitySummaryPage extends StatelessWidget {
                 child: const Text('Export'),
               ),
               ElevatedButton(
-                onPressed: () =>
-                    live ? _backToTracker(context) : Navigator.pop(context),
-                child: Text(live ? 'Back to tracking' : 'Done'),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
               ),
             ],
             children: [
               Row(
                 children: [
                   ActivityBadge(
-                    live
-                        ? 'Session in progress'
-                        : session.interrupted
-                            ? 'Session recovered'
-                            : 'Session saved',
+                    session.interrupted ? 'Session recovered' : 'Session saved',
                     warning: session.interrupted,
                   ),
                 ],
               ),
+              if (session.kind != null)
+                Text(
+                  session.kind!.label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 24,
+                  ),
+                ),
               Text(
                 '${activityDate(session.startedAt)}, ${activityTime(session.startedAt)} · ${activityDuration(duration)}',
                 style:
@@ -229,16 +224,6 @@ class ActivitySummaryPage extends StatelessWidget {
                   'Study mode · ${session.trials.length} reference trials',
                 ),
               ),
-              if (live)
-                OutlinedButton(
-                  onPressed: () async {
-                    // Saves this session and continues with a new one, so
-                    // the tracker stays connected and ready.
-                    await c.finishAndRestart();
-                    if (context.mounted) _backToTracker(context);
-                  },
-                  child: const Text('End and save session'),
-                ),
               if (c.storageError != null)
                 ActivityNotice(
                   'Storage needs attention',
@@ -249,16 +234,6 @@ class ActivitySummaryPage extends StatelessWidget {
           );
         },
       );
-}
-
-/// Pops this summary and, if it was opened from the session list, that list.
-void _backToTracker(BuildContext context) {
-  var top = true;
-  Navigator.popUntil(context, (route) {
-    final stop = !top && route.settings.name != ActivitySessionsPage.routeName;
-    top = false;
-    return stop;
-  });
 }
 
 /// Reference-based evaluation for participants, speeds and execution styles.

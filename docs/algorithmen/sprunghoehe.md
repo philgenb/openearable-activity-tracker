@@ -1,6 +1,6 @@
 # Sprunghöhe
 
-Stand: 15.11.2026. Code: [`activity_engine.dart`](../../open_wearable/lib/apps/activity_tracker/models/activity_engine.dart), Klasse `_JumpDetector`. Grundlage ist Phils Prototyp vom 06.11.2026.
+Stand: 17.11.2026. Code: [`activity_engine.dart`](../../open_wearable/lib/apps/activity_tracker/models/activity_engine.dart), Klasse `_JumpDetector`. Grundlage ist Phils Prototyp vom 06.11.2026.
 
 ## Ansatz: Flugzeit
 
@@ -123,6 +123,20 @@ Die erste Aufnahme (ohne Video) liefert weiterhin genau die 3 Sprünge des Sprun
 **Verworfen:** Impuls-Methode (`h = v²/2g`) als zweite Schätzung. Die Abdruckphase ist bei ±2 g abgeschnitten (Maximum in den Aufnahmen 19,62 m/s²), die Geschwindigkeit wäre systematisch zu klein. Wieder prüfen, falls die IMU mit größerem Messbereich konfiguriert werden kann.
 
 Werte, abgelesene Frames und Formeln liegen in einer Excel-Datei außerhalb des Repos (enthält Dateinamen der Videos). Die Rohdaten bleiben lokal.
+
+## Gerätetest ohne Referenz (17.11.2026)
+
+**Aufbau:** 1 Person (JP), OpenEarable 2.0, App-Stand `e5cdb78` (Absprung an der ersten Unterschreitung). Eine Sprung-Session von 31 s mit 7 Sprüngen, ca. 100 Hz (Median-Abstand 10 ms, größte Lücke 60 ms). **Keine Referenzmessung.** Subjektiver Eindruck der Testperson: Die Höhen wirken deutlich plausibler als vorher.
+
+**App-Werte:** 4,1 / 11,2 / 25,8 / 26,5 / 2,5 / 6,6 / 11,7 cm (Flugzeit 0,14–0,46 s).
+
+**Befund aus der Roh-CSV:**
+
+- Jede der 7 Erkennungen fällt auf eine Freifallphase (|a| < 3,5 m/s² zusammenhängend 0,11–0,26 s). Es gibt keine Erkennung ohne Freifall und keine Freifallphase ab 0,1 s ohne Erkennung. Die einzige kürzere Phase (60 ms, zwischen Sprung 5 und 6) wird zu Recht nicht gezählt.
+- Das Muster vom 15.11. ist wieder da: Nach dem Abdruck pendelt |a| 0,1–0,25 s zwischen 4 und 8 m/s², bevor der dauerhafte Freifall beginnt (Sprung 2, 3, 4, 7). Der Detektor zählt diese Phase zur Flugzeit, wie gegen das Video vom 13.11. festgelegt. Die zusammenhängende Freifallphase allein ist deshalb bei allen Sprüngen deutlich kürzer als die gemeldete Flugzeit.
+- Bei den beiden kleinsten Sprüngen (2,5 und 4,1 cm) gibt es dieses Pendeln nicht. Ob das echte kleine Hüpfer waren, lässt sich ohne Referenz nicht sagen.
+
+**Keine Parameteränderung.** Ohne Referenz lässt sich nur prüfen, ob Sprünge erkannt werden, nicht ob die Höhe stimmt. Jede Schwellenänderung auf Basis dieser Session wäre geraten. Die Video-Auswertung vom 15.11. bleibt die Grundlage, `flightOffset` bleibt bei 0. Nächster Schritt ist der Evaluationsplan unten mit Video oder Kontaktmatte.
 
 ## Verworfene Alternativen
 
