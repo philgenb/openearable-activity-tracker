@@ -90,7 +90,7 @@ class ActivityStorage {
     await json.writeAsString(
       const JsonEncoder.withIndent('  ').convert({
         'schemaVersion': 1,
-        'algorithmVersion': 'heuristic-1',
+        'algorithmVersion': 'heuristic-2',
         'heightModel':
             'g * flight_seconds^2 / 8; equal take-off and landing posture assumed',
         'session': session.toJson(),

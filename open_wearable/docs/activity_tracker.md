@@ -99,8 +99,12 @@ of a 3.5 m/s² free-fall threshold, so clipped impact peaks do not affect the
 height. Take-off is the first crossing after the last push sample; only an
 impact ends the flight, so head oscillation after toe-off and in-air bumps do
 not shorten it. Samples slower than 40 Hz and ambiguous landings produce an unavailable
-height. A systematic flight-time offset (`flightOffset`, currently 0) is meant
-to be fitted against a reference measurement. Walking/running is not classified.
+height. A fixed offset (`ActivityEngine.jumpFlightOffset`, 40 ms) is subtracted
+from every measured flight, because at the ear free fall starts before toe-off.
+It was fitted against 240 fps video (1 person, 30 jumps) and must be refitted
+with more participants. Validity limits apply to the raw flight time. Exports
+with the offset carry `algorithmVersion: heuristic-2`. Walking/running is not
+classified.
 
 Synthetic replay tests verify implementation behavior, **not real-world
 accuracy**. No earable hardware or participant dataset was available during

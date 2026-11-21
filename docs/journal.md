@@ -2,6 +2,18 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-21: Fester Flugzeit-Offset von 40 ms für die Sprunghöhe
+
+**Was:** Neue Sprung-Session (13 Sprünge) Frame für Frame mit 240-fps-Video verglichen. Danach zieht die App von jeder gemessenen Flugzeit 40 ms ab (`ActivityEngine.jumpFlightOffset`). Der Export trägt jetzt `algorithmVersion: heuristic-2`. Details: [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#video-vergleich-session-4-und-fester-offset-21112026).
+
+**Warum:** Die App hat alle 13 Sprünge zu lang gemessen, im Mittel +50 ms (Höhe +4 cm). Der Grund: Am Ohr beginnt der Freifall etwa 40–50 ms, bevor die Zehen den Boden verlassen, und das bei jedem Sprung fast gleich (Streuung 10 ms). Der Offset ist der Median-Fehler über alle 30 Sprünge mit Video (41 ms).
+
+**Verworfen:** Ein Offset, der von der Sprunghöhe abhängt. Kleine Sprünge werden zwar stärker überschätzt, aber dieser Zusammenhang ist nur in einer von drei Sessions deutlich. Beim Prüfen auf jeweils der dritten Session war er schlechter als der feste Offset (MAE 32 bzw. 28 statt 26 ms). Andere Schwellen für Absprung oder Landung brachten weniger.
+
+**Ergebnis:** 1 Person, 30 Sprünge, ca. 100 Hz, Referenz 240-fps-Video. Fit auf je zwei Sessions, Test auf der dritten: MAE der Flugzeit 44 → 26 ms. Mit 40 ms auf allen Daten: Höhe Bias +2,7 → −1,0 cm, MAE 3,9 → 2,2 cm. Replay: jede Flugzeit genau 40 ms kürzer, keine Sprünge verloren. Activity-Tracker-Tests grün, neuer Test sichert ab, dass die Mindestflugzeit für die Rohzeit gilt.
+
+**Offen:** Mit mehreren Personen neu fitten und dort den höhenabhängigen Offset erneut prüfen. Replay von Session 1 (13.11.) liefert keine Sprünge, unabhängig vom Offset. Noch nicht am Gerät nachgetestet.
+
 ## 2026-11-21: Aktivitätswahl als eigener Schritt, Sessions löschen
 
 **Was:** „Ready to move?“ (Gerät, Sitz prüfen, Kalibrierung) ist jetzt ein eigener Bildschirm. Erst „Continue“ öffnet die Aktivitätswahl mit den vier Kacheln und der letzten Session. Nach „End session“ landet man wieder bei der Aktivitätswahl. In der Session-Liste hat jede beendete Session einen Löschen-Button mit Rückfrage. Gelöscht werden der Eintrag, die Roh-CSV und eventuelle Exporte, und die Schritte der Session fallen aus dem Tageswert.

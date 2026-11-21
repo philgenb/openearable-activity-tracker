@@ -1,6 +1,6 @@
 # Sprunghöhe
 
-Stand: 17.11.2026. Code: [`activity_engine.dart`](../../open_wearable/lib/apps/activity_tracker/models/activity_engine.dart), Klasse `_JumpDetector`. Grundlage ist Phils Prototyp vom 06.11.2026.
+Stand: 21.11.2026. Code: [`activity_engine.dart`](../../open_wearable/lib/apps/activity_tracker/models/activity_engine.dart), Klasse `_JumpDetector`. Grundlage ist Phils Prototyp vom 06.11.2026.
 
 ## Ansatz: Flugzeit
 
@@ -33,7 +33,7 @@ Die Ruhephase im Schritt-Modus verhindert, dass die kurzen Flugphasen beim Jogge
 | Bereitschaftsfenster | 2 s | Zeit zwischen Ruhe und Abdruck (nur Schritt-Modus relevant) |
 | Mindestflugzeit | 80 ms | Aufprall-Sample davor = Fuß drückt noch |
 | Landewartezeit | 120 ms | so lange über 3,5 m/s² ohne Aufprall = keine Landung |
-| `flightOffset` | 0 s | systematische Korrektur, wird gegen die Referenz gefittet |
+| `jumpFlightOffset` | 40 ms | wird von jeder gemessenen Flugzeit abgezogen, am Video gefittet (21.11.2026). Gültige Flugzeit und Mindestflugzeit gelten für die Rohzeit |
 
 ## Änderungen gegenüber dem Prototyp (07.11.2026)
 
@@ -138,6 +138,62 @@ Werte, abgelesene Frames und Formeln liegen in einer Excel-Datei außerhalb des 
 
 **Keine Parameteränderung.** Ohne Referenz lässt sich nur prüfen, ob Sprünge erkannt werden, nicht ob die Höhe stimmt. Jede Schwellenänderung auf Basis dieser Session wäre geraten. Die Video-Auswertung vom 15.11. bleibt die Grundlage, `flightOffset` bleibt bei 0. Nächster Schritt ist der Evaluationsplan unten mit Video oder Kontaktmatte.
 
+## Video-Vergleich Session 4 und fester Offset (21.11.2026)
+
+**Aufbau:** 1 Person (JP), OpenEarable 2.0, ca. 100 Hz (Median-Abstand 10 ms, größte Lücke 70 ms). App-Stand mit Absprung an der ersten Unterschreitung. 13 Sprünge in 44 s, von flach (≈ 1 cm) bis ≈ 28 cm. Referenz wie am 13.11.: Pixel-Slow-Motion von der Seite auf Fußhöhe. Gemessen wird vom letzten Frame mit Zehenkontakt bis zum ersten Frame mit Bodenkontakt, von Hand abgelesen (±2 Frames pro Ende, bei Sprung 13 standen die Füße am Bildrand, ±3). Im Video fehlt diesmal der Tag `capture.fps`. Die 240 fps sind trotzdem gesichert: Bei 240 fps stimmen die Abstände zwischen den Landungen auf ±15 ms mit den Erkennungszeitpunkten der App überein. Aus der Roh-CSV neu berechnet, ergeben sich exakt die Flugzeiten, die die App exportiert hat.
+
+| Nr | Flug Video | Höhe Video | Flug App | Diff | Höhe App | Höhe mit 40 ms Offset | Diff |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0,471 s | 27,2 cm | 0,514 s | +44 ms | 32,4 cm | 27,6 cm | +0,4 cm |
+| 2 | 0,463 s | 26,2 cm | 0,514 s | +52 ms | 32,4 cm | 27,6 cm | +1,4 cm |
+| 3 | 0,283 s | 9,8 cm | 0,372 s | +88 ms | 16,9 cm | 13,5 cm | +3,6 cm |
+| 4 | 0,229 s | 6,4 cm | 0,299 s | +70 ms | 11,0 cm | 8,2 cm | +1,8 cm |
+| 5 | 0,096 s | 1,1 cm | 0,171 s | +75 ms | 3,6 cm | 2,1 cm | +1,0 cm |
+| 6 | 0,183 s | 4,1 cm | 0,263 s | +79 ms | 8,5 cm | 6,1 cm | +2,0 cm |
+| 7 | 0,467 s | 26,7 cm | 0,496 s | +29 ms | 30,1 cm | 25,4 cm | −1,3 cm |
+| 8 | 0,442 s | 23,9 cm | 0,465 s | +23 ms | 26,5 cm | 22,1 cm | −1,8 cm |
+| 9 | 0,275 s | 9,3 cm | 0,320 s | +45 ms | 12,5 cm | 9,6 cm | +0,3 cm |
+| 10 | 0,379 s | 17,6 cm | 0,406 s | +27 ms | 20,2 cm | 16,4 cm | −1,2 cm |
+| 11 | 0,433 s | 23,0 cm | 0,468 s | +35 ms | 26,8 cm | 22,5 cm | −0,6 cm |
+| 12 | 0,475 s | 27,7 cm | 0,500 s | +25 ms | 30,7 cm | 26,0 cm | −1,7 cm |
+| 13 | 0,196 s | 4,7 cm | 0,250 s | +54 ms | 7,7 cm | 5,4 cm | +0,7 cm |
+
+**Befund:** Die App misst **jeden** Sprung zu lang, im Mittel um 50 ms. Die Höhe liegt dadurch im Mittel 4,0 cm zu hoch (MAE 4,0 cm). Sprung 5 sah im Übersichtsbild zuerst wie eine Fehlerkennung aus. Im Zoom auf die Zehen ist aber ein echter, sehr flacher Flug von 23 Frames zu sehen. Die Testperson hat bestätigt, dass sie gesprungen ist.
+
+**Woher der Fehler kommt:** Richtet man die Uhren von IMU und Video pro Session an den Landungen aus, liegt der IMU-Absprung in Session 4 bei allen 13 Sprüngen 37–74 ms vor dem Abheben der Zehen. Die Streuung (SD) beträgt nur 10 ms, die der Landungen 14 ms. Der Kopf ist also schon im Freifall, während die Zehen noch Bodenkontakt haben. Genau das war die Vermutung, mit der `flightOffset` am 07.11. angelegt wurde. Am 13.11. sah es anders aus, weil der damalige Absprung-Fehler (bis zu 0,18 s zu kurz) diesen Effekt überdeckt hat. In Session 1–2 streut der Absprung stärker (SD 36–46 ms). Dort war die Technik uneinheitlich, teils mit hochgezogenen Beinen.
+
+### Entscheidung: fester Offset von 40 ms
+
+Ausgewertet wurden alle 30 Sprünge mit Video (Session 1, 2 und 4, eine Person), die Flugzeit jeweils neu berechnet mit dem aktuellen Absprung. Damit sichtbar wird, ob eine Korrektur auf neue Daten übertragbar ist, wurde jede Variante an zwei Sessions gefittet und an der dritten geprüft (leave-one-session-out). Das Skript dazu liegt in der lokalen Auswertung (`ideas.py`).
+
+| Variante | MAE Flugzeit (Test-Session) | größter Fehler |
+| --- | --- | --- |
+| ohne Korrektur | 44 ms | 88 ms |
+| **fester Offset (Median)** | **26 ms** | 125 ms |
+| zwei Offsets, klein/groß getrennt bei 0,35 s | 28 ms | 120 ms |
+| Offset linear abhängig von der Flugzeit | 32 ms | 119 ms |
+
+- Der Median-Fehler über alle 30 Sprünge beträgt 41 ms. Jeweils ohne eine Session gefittet, ergeben sich 38, 45 und 39 ms. Gewählt: **40 ms**.
+- Mit 40 ms über alle 30 Sprünge: Flugzeit Bias −7 ms, MAE 25 ms. Höhe Bias −1,0 cm, MAE 2,2 cm (vorher +2,7 cm und 3,9 cm). Session 4 allein: MAE 19 ms bzw. 1,4 cm. Diese Werte sind auf denselben Daten gefittet und ausgewertet. Aussagekräftiger ist die Tabelle oben.
+- Der größte Fehler steigt auf etwa 120 ms. Das sind die beiden Sprünge vom 13.11. mit stark hochgezogenen Beinen. Sie wurden schon vorher zu kurz gemessen, der Offset macht sie noch kürzer.
+- Der Offset korrigiert nur den Wert. Die Grenzen für eine gültige Flugzeit (0,12–0,85 s) gelten weiter für die rohe Messzeit, damit flache Hüpfer wie Sprung 5 ihre Höhe behalten. Ein Replay der Aufnahmen vom 13.11. (Session 2), 17.11. und 21.11. liefert dieselben Sprünge mit Höhe wie vorher, jede Flugzeit ist genau 40 ms kürzer.
+
+**Warum nicht abhängig von der Sprunghöhe:** Kleine Sprünge werden stärker überschätzt, im Median um 59 ms bei unter 0,35 s Flug und um 32 ms darüber. Der Zusammenhang ist aber nicht in allen Sessions da: deutlich in Session 4 (r = −0,67), schwach in Session 2 (−0,42), in Session 1 gar nicht (+0,11). Ein höhenabhängiger Offset lernt deshalb ein Muster, das nur in einer Session auftaucht. In der Tabelle oben schneidet er schlechter ab als der feste Offset, sogar beim Testen auf Session 4 selbst (28 statt 19 ms). Physikalisch wäre er plausibel: Bei schwachem Abdruck setzt der Freifall am Kopf früher ein, und bei kleinen Sprüngen kam die erkannte Landung in Session 4 15–30 ms später. Die Daten reichen nur noch nicht. Mit den drei Höhenstufen aus dem Evaluationsplan neu prüfen.
+
+**Ebenfalls geprüft und verworfen:**
+
+- Landeschwelle 2,0 statt 3,5 m/s²: MAE 44 → 40 ms, der Bias bleibt. Bringt weniger als der Offset.
+- Absprungschwelle 2,5 statt 3,5 m/s²: Bias ≈ 0, aber MAE 44 ms und Einzelfehler bis 120 ms. In der Luft fällt |a| nicht bei jedem Sprung so tief.
+- Höhere Schwellen (5–9,8 m/s²) machen die Flugzeit noch länger und den Fehler größer.
+
+**Offen:**
+
+- Alles stammt von einer Person. Der Offset ist zwischen Sessions geprüft, nicht zwischen Personen. Neu fitten, sobald der Evaluationsplan mit mehreren Personen läuft.
+- Die y-Achse wird weiter bei ±2 g abgeschnitten (Session 4: 211 Samples bei −19,62 m/s²). Die Impuls-Methode bleibt deshalb blockiert.
+- Der Replay von Session 1 (13.11.) liefert mit dem aktuellen Stand keine Sprünge, mit und ohne Offset (Kalibrierung am Ende fehlt). Mit dem Offset hat das nichts zu tun, ist aber noch zu klären.
+
+**Export:** `algorithmVersion` ist jetzt `heuristic-2`. So lassen sich exportierte Flugzeiten mit Offset von älteren ohne Offset unterscheiden.
+
 ## Verworfene Alternativen
 
 - **Abhebegeschwindigkeit integrieren** (`h = v²/2g`): Die vertikale Beschleunigung wird während des Abdrucks aufintegriert. Das braucht eine saubere Lage- und Gravitationsschätzung, und gerade die Abdruckphase wird bei ±2 g abgeschnitten, was die Geschwindigkeit systematisch unterschätzt. Als zweite Schätzung für die Evaluation weiter interessant.
@@ -149,7 +205,7 @@ Werte, abgelesene Frames und Formeln liegen in einer Excel-Datei außerhalb des 
 - Landet jemand mit stark gebeugten Knien, wird die Flugzeit länger und die Höhe überschätzt. Das ist eine Eigenschaft der Methode, nicht des Sensors.
 - Die Schwellen sind an einer einzigen Hardware-Aufnahme (1 Person) und synthetischen Signalen geprüft.
 - Der tatsächliche Messbereich der OE2-IMU ist noch nicht überprüft. Die ±2 g stammen aus dem Prototyp.
-- Bisher gibt es **keine Messung mit Referenz**. Ob die Flugzeit am Ohr systematisch zu lang ist, ist offen.
+- Referenz bisher nur Video von einer Person (30 Sprünge). Dort ist die Flugzeit am Ohr systematisch etwa 40 ms zu lang, das korrigiert `jumpFlightOffset`. Ob das für andere Personen gilt, ist offen.
 
 ## Evaluationsplan
 
@@ -163,4 +219,4 @@ Werte, abgelesene Frames und Formeln liegen in einer Excel-Datei außerhalb des 
 - Anteil der Sprünge mit gültiger Höhe (Abdeckung) und Anteil verpasster Sprünge
 - Falsch erkannte Sprünge in den Negativkontrollen
 
-**Vorgehen:** `flightOffset` auf einigen Personen fitten (Median der Flugzeit-Differenz), auf den übrigen auswerten. Die App bietet dafür schon den Study-Modus mit Referenzhöhe und exportiert Roh-CSV. Mit `dart run tool/replay_activity_trace.dart <session.csv>` lässt sich jede Aufnahme mit geänderten Parametern erneut auswerten.
+**Vorgehen:** `jumpFlightOffset` (Stand: 40 ms aus einer Person) auf einigen Personen neu fitten (Median der Flugzeit-Differenz), auf den übrigen auswerten. Die App bietet dafür schon den Study-Modus mit Referenzhöhe und exportiert Roh-CSV. Mit `dart run tool/replay_activity_trace.dart <session.csv>` lässt sich jede Aufnahme mit geänderten Parametern erneut auswerten.

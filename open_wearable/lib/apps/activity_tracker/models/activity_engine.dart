@@ -16,6 +16,15 @@ class ActivityUpdate {
 /// ear-worn, participant-independent evaluation before accuracy claims.
 class ActivityEngine {
   static const gravity = 9.80665;
+
+  /// Subtracted from every measured jump flight time, in seconds.
+  ///
+  /// At the ear, the free-fall crossing comes about 40 ms before toe-off seen
+  /// on 240 fps video, so raw flights are too long. Fitted as the median error
+  /// over 30 video-referenced jumps (1 person, 13.11. and 21.11.2026); fitting
+  /// on two sessions and testing on the third gave 38–45 ms and cut the
+  /// flight-time MAE from 44 to 26 ms. Refit once several people are measured.
+  static const jumpFlightOffset = 0.040;
   ActivityKind kind = ActivityKind.steps;
   bool calibrated = false;
   double calibrationProgress = 0;
@@ -305,15 +314,11 @@ class _RepetitionDetector {
 /// Only threshold crossing times enter the height, so saturated take-off or
 /// landing peaks do not affect it. Crossings are interpolated between samples.
 /// Compared with 240 fps video (1 person, 17 jumps, 15.11.2026) this halved
-/// the flight-time error versus the previous last-crossing take-off.
+/// the flight-time error versus the previous last-crossing take-off. The
+/// remaining systematic error is removed by [ActivityEngine.jumpFlightOffset].
 class _JumpDetector {
   static const _freeFall = 3.5, _impact = 12.3;
   static const _armWindow = 2.0, _minFlight = 0.08, _landingWait = 0.12;
-
-  /// Systematic flight-time correction in seconds, to be fitted against a
-  /// reference once jumps with uniform technique exist. The first video
-  /// comparison left a bias of about +14 ms, within the reading error.
-  static const flightOffset = 0.0;
 
   double _still = 0,
       _armedAt = -100,
@@ -402,8 +407,11 @@ class _JumpDetector {
   }
 
   JumpAttempt? _finish(double t, {required bool landed}) {
-    final flight = _endFlight - _takeoff - flightOffset;
-    final valid = flight >= 0.12 && flight <= 0.85 && landed && !_slow;
+    final measured = _endFlight - _takeoff;
+    // Validity uses the raw measurement: the offset calibrates the value and
+    // must not change which jumps are detected.
+    final valid = measured >= 0.12 && measured <= 0.85 && landed && !_slow;
+    final flight = measured - ActivityEngine.jumpFlightOffset;
     final result = JumpAttempt(
       at: t,
       flightSeconds: flight,

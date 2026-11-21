@@ -3,6 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:open_wearable/apps/activity_tracker/models/activity_engine.dart';
 import 'package:open_wearable/apps/activity_tracker/models/activity_models.dart';
 
+/// Flight time the engine reports for a raw [measured] flight.
+double _reported(double measured) => measured - ActivityEngine.jumpFlightOffset;
+
+/// Height in cm for a reported flight time.
+double _height(double flight) =>
+    ActivityEngine.gravity * flight * flight / 8 * 100;
+
 class _Replay {
   final engine = ActivityEngine();
   double time = 0;
@@ -148,7 +155,7 @@ void main() {
     r.engine.select(ActivityKind.jumps);
     r.jump();
     expect(r.jumps, hasLength(1));
-    expect(r.jumps.single.heightCm, closeTo(19.6, 1.1));
+    expect(r.jumps.single.heightCm, closeTo(_height(_reported(0.4)), 1.1));
     expect(r.steps, 0);
   });
   test('clipped impacts keep the height, slow samples do not', () {
@@ -156,11 +163,23 @@ void main() {
     final clipped = _Replay()..still();
     clipped.engine.select(ActivityKind.jumps);
     clipped.jump(landing: 19.6);
-    expect(clipped.jumps.single.heightCm, closeTo(19.6, 1.1));
+    expect(
+      clipped.jumps.single.heightCm,
+      closeTo(_height(_reported(0.4)), 1.1),
+    );
     final slow = _Replay()..still();
     slow.engine.select(ActivityKind.jumps);
     slow.jump(dt: 0.04);
     expect(slow.jumps.single.heightCm, isNull);
+  });
+  test('flight offset corrects the value, not which jumps get a height', () {
+    // A flat hop (21.11.2026, ~1 cm on video) measures about 0.15 s at the
+    // ear. The minimum flight applies to that raw time, before the offset.
+    final r = _Replay()..still();
+    r.engine.select(ActivityKind.jumps);
+    r.jump(flight: 0.15);
+    expect(r.jumps.single.heightCm, isNotNull);
+    expect(r.jumps.single.flightSeconds, lessThan(0.12));
   });
   test('real-world take-off: slow dip, push vibration, no still stance', () {
     // Shape of an ear-worn recording (2026-11-13): ~1 s countermovement,
@@ -192,7 +211,7 @@ void main() {
     expect(r.jumps, hasLength(1));
     // Take-off 0.67 ms before the 3.2 sample, landing 1.32 ms after the
     // last free-fall sample: 0.39 s + both offsets.
-    expect(r.jumps.single.flightSeconds, closeTo(0.392, 0.001));
+    expect(r.jumps.single.flightSeconds, closeTo(_reported(0.392), 0.001));
     expect(r.jumps.single.heightCm, isNotNull);
   });
   test('in-air bumps without impact neither split nor end the flight', () {
@@ -222,7 +241,7 @@ void main() {
 
     flight([6, 7, 6]);
     expect(r.jumps, hasLength(1));
-    expect(r.jumps.single.flightSeconds, closeTo(0.41, 0.01));
+    expect(r.jumps.single.flightSeconds, closeTo(_reported(0.41), 0.01));
     expect(r.jumps.single.heightCm, isNotNull);
     // A long lift without impact is no landing: report it, but no height.
     flight(List.filled(15, 6));
@@ -253,7 +272,7 @@ void main() {
         r.sample(profile(r.time + 0.01 - start));
       }
       r.still(1);
-      expect(r.jumps.single.flightSeconds, closeTo(truth, 0.001));
+      expect(r.jumps.single.flightSeconds, closeTo(_reported(truth), 0.001));
     }
   });
   test('data gaps discard partial flight and do not invent counts', () {
