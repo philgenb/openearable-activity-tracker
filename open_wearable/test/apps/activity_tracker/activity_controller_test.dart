@@ -68,6 +68,36 @@ void main() {
     expect(restored.todaySteps, 20);
     restored.dispose();
   });
+  test('deleting a session removes it, its files and its daily steps',
+      () async {
+    final source = ReplayActivitySource();
+    final storage = MemoryActivityStorage();
+    final c = ActivityTrackerController(
+      source: source,
+      storage: storage,
+      observeLifecycle: false,
+    );
+    await c.prepare('ear');
+    source.still();
+    await c.startActivity(ActivityKind.steps);
+    source.walk(10);
+    final first = (await c.finish())!;
+    await c.startActivity(ActivityKind.steps);
+    source.walk(4);
+    expect(c.todaySteps, 14);
+    // The running session is protected.
+    await c.deleteSession(c.current!);
+    expect(c.sessions, hasLength(2));
+    await c.deleteSession(first);
+    expect(c.sessions.single, same(c.current));
+    expect(c.todaySteps, 4);
+    expect(storage.deletedIds, [first.id]);
+    expect(
+      (storage.snapshot!['sessions'] as List).map((s) => s['id']),
+      isNot(contains(first.id)),
+    );
+    c.dispose();
+  });
   test('foreground resumes with calibration; background never adds counts',
       () async {
     final source = ReplayActivitySource();

@@ -212,6 +212,28 @@ class ActivityTrackerController extends ChangeNotifier
     return result;
   }
 
+  /// Removes a finished session with its exports and raw trace. Its steps
+  /// leave the daily total of the day it started. The running session
+  /// cannot be deleted; end it first.
+  Future<void> deleteSession(ActivitySession session) async {
+    if (identical(session, current) || !sessions.remove(session)) return;
+    final day = session.startedAt.toIso8601String().substring(0, 10);
+    final left = (_dailySteps[day] ?? 0) - session.steps;
+    if (left > 0) {
+      _dailySteps[day] = left;
+    } else {
+      _dailySteps.remove(day);
+    }
+    _notify();
+    await checkpoint();
+    try {
+      await storage.deleteFiles(session.id);
+    } catch (e) {
+      storageError = 'Session files could not be deleted. $e';
+      _notify();
+    }
+  }
+
   void addTrial(ActivitySession session, ValidationTrial trial) {
     session.trials.add(trial);
     unawaited(checkpoint());

@@ -52,6 +52,12 @@ class ActivitySessionsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (!identical(s, c.current))
+                      IconButton(
+                        tooltip: 'Delete session',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _confirmDelete(context, c, s),
+                      ),
                     const Icon(Icons.chevron_right),
                   ],
                 ),
@@ -59,6 +65,35 @@ class ActivitySessionsPage extends StatelessWidget {
           ],
         ),
       );
+}
+
+Future<void> _confirmDelete(
+  BuildContext context,
+  ActivityTrackerController c,
+  ActivitySession s,
+) async {
+  final delete = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: const Text('Delete session?'),
+      content: Text(
+        '${s.kind?.label ?? 'Workout'} from ${activityDate(s.startedAt)}, '
+        '${activityTime(s.startedAt)} and its recorded motion data are '
+        'removed. This cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialog),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialog, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (delete == true) await c.deleteSession(s);
 }
 
 /// Saved metrics and exports, using only confirmed algorithm events.

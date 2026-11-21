@@ -131,8 +131,12 @@ void main() {
       await tester.tap(find.byType(Checkbox).first);
       await tester.pumpAndSettle();
       expect(find.text('Ready to move?'), findsOneWidget);
+      // The activity choice is its own step after the readiness check.
+      expect(find.text('Squats'), findsNothing);
       expect(c.sessions, isEmpty);
       await preview(tester, 'ready-$width', key);
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Squats'),
         200,
@@ -157,6 +161,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Sessions'), findsOneWidget);
       expect(find.textContaining('Squats ·'), findsOneWidget);
+      await tester.tap(find.byTooltip('Delete session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(c.sessions, isEmpty);
+      expect(find.text('No sessions yet'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       c.dispose();
@@ -205,6 +215,8 @@ void main() {
     // The overview itself never starts a session.
     expect(c.isTracking, isFalse);
     expect(c.sessions, isEmpty);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
 
     Future<void> open(String tile) async {
       await tester.scrollUntilVisible(
@@ -251,6 +263,10 @@ void main() {
     expect(c.sessions.every((s) => s.endedAt != null), isTrue);
 
     // Leaving the tracker releases the wearable without a dialog.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Ready to move?'), findsOneWidget);
+    expect(source.closed, isFalse);
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Open tracker'), findsOneWidget);

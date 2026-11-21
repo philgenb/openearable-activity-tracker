@@ -9,8 +9,9 @@ phone screens on the core page of the [approved Figma file](https://www.figma.co
 
 1. Connect an OpenEarable with three-axis accelerometer and gyroscope streams.
 2. Check the fit and stand still for 1.5 seconds.
-3. The overview records nothing. Choose one of four activities: Steps, Squats,
-   Push-ups or Jump test. Each tile starts its own session (`ActivitySession.kind`).
+3. "Continue" opens a separate activity screen; the readiness screen records
+   nothing. Choose one of four activities: Steps, Squats, Push-ups or Jump
+   test. Each tile starts its own session (`ActivitySession.kind`).
 4. Squats and push-ups: hold the starting position briefly, then perform
    complete down/up cycles. The session holds one set.
 5. Jump test detects take-off/free flight/landing and displays an estimated
@@ -19,14 +20,17 @@ phone screens on the core page of the [approved Figma file](https://www.figma.co
 6. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
    incomplete movements and require still calibration before counting resumes.
 7. "End session" or back (after a confirmation) ends exactly that session and
-   returns to the overview. A session never keeps running in the background.
+   returns to the activity screen. A session never keeps running in the background.
    The wearable stays streaming and calibrated, so the next activity starts
    without reconnecting. Leaving the tracker ends any running session and
    releases its sensors.
 8. History, reference trials, JSON and CSV exports are available in Sessions.
    The app tile also opens without a connected wearable, so history and an
    interrupted session remain accessible offline. Sessions saved before
-   `kind` existed are listed as "Workout".
+   `kind` existed are listed as "Workout". Finished sessions can be deleted
+   from the list after a confirmation; this removes the snapshot entry, the raw
+   CSV and exports, and subtracts its steps from the day it started. The
+   running session has no delete button.
 
 There is no ML, automatic exercise selection, walking/running/stairs classifier
 or microphone processing in this implementation. The user selects the exercise.

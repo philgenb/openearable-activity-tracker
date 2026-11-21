@@ -2,6 +2,16 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-21: Aktivitätswahl als eigener Schritt, Sessions löschen
+
+**Was:** „Ready to move?“ (Gerät, Sitz prüfen, Kalibrierung) ist jetzt ein eigener Bildschirm. Erst „Continue“ öffnet die Aktivitätswahl mit den vier Kacheln und der letzten Session. Nach „End session“ landet man wieder bei der Aktivitätswahl. In der Session-Liste hat jede beendete Session einen Löschen-Button mit Rückfrage. Gelöscht werden der Eintrag, die Roh-CSV und eventuelle Exporte, und die Schritte der Session fallen aus dem Tageswert.
+
+**Warum:** Am Tablet standen Check und Aktivitätswahl auf einer langen Seite. Die Kacheln lagen unter der Falz und wirkten wie ein Teil der Vorbereitung. Getrennt ist die Reihenfolge eindeutig: erst bereit machen, dann wählen. Löschen braucht man, weil beim Testen viele kurze Probe-Sessions entstehen, die die Liste und spätere Auswertungen verstopfen.
+
+**Verworfen:** Wischen zum Löschen. Auf dem Tablet schwer zu entdecken und leicht aus Versehen auszulösen. Die laufende Session lässt sich nicht löschen, sie muss erst beendet werden.
+
+**Ergebnis:** Controller-Test fürs Löschen (Eintrag, Dateien, Tageswert, laufende Session geschützt) und Widget-Tests für den neuen Ablauf. `flutter analyze` ohne Befund, alle 221 Tests grün.
+
 ## 2026-11-17: Eine Session pro Aktivität
 
 **Was:** Der Tracker legt Sessions nur noch an, wenn man eine Aktivität antippt. Die Übersicht hat vier Kacheln: Steps, Squats, Push-ups, Jump test. Jede startet ihre eigene Session. „End session“ oder Zurück (mit Rückfrage) beendet sie und führt zurück zur Übersicht. Die Übersicht zählt und speichert nichts. Wer den Tracker verlässt, beendet eine noch laufende Session und gibt das Earable frei. Die Session-Liste zeigt pro Eintrag die Aktivität und das passende Ergebnis.

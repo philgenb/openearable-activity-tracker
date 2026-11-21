@@ -22,7 +22,7 @@ class ActivityTrackerPage extends StatefulWidget {
 }
 
 class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
-  bool _fitChecked = false, _starting = false;
+  bool _fitChecked = false;
   late ActivityTrackerController _controller;
   @override
   void initState() {
@@ -39,19 +39,6 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
   void dispose() {
     _controller.leave();
     super.dispose();
-  }
-
-  Future<void> _start(ActivityKind kind) async {
-    setState(() => _starting = true);
-    await _controller.startActivity(kind);
-    if (!mounted) return;
-    setState(() => _starting = false);
-    if (_controller.isTracking) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const _ActivityPage()),
-      );
-    }
   }
 
   @override
@@ -89,29 +76,25 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
       );
 
   Widget _overview(ActivityTrackerController c) {
-    final canStart = !_starting &&
-        !c.isTracking &&
-        _fitChecked &&
-        c.connected &&
-        c.engine.calibrated;
-    final latest = c.sessions.where((s) => s.endedAt != null).firstOrNull;
-    final lastJump = c.sessions
-        .expand((s) => s.jumps.reversed)
-        .where((j) => j.heightCm != null)
-        .firstOrNull;
-    Widget tile(ActivityKind kind, String detail) => _activityCard(
-          context,
-          kind,
-          detail,
-          canStart ? () => _start(kind) : null,
-        );
+    final ready = _fitChecked && c.connected && c.engine.calibrated;
     return ActivityLayout(
       title: 'Activity Tracker',
       actions: [
-        ElevatedButton(
+        OutlinedButton(
           onPressed: () =>
               Navigator.push(context, ActivitySessionsPage.route()),
           child: const Text('View sessions'),
+        ),
+        ElevatedButton(
+          onPressed: ready
+              ? () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _ChooseActivityPage(),
+                    ),
+                  )
+              : null,
+          child: const Text('Continue'),
         ),
       ],
       children: [
@@ -229,41 +212,80 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
             ],
           ),
         ),
-        ActivityNotice(
-          c.engine.calibrated ? 'You’re ready' : 'Waiting for a steady signal',
-          c.engine.calibrated
-              ? 'Motion data is available. Choose an activity to begin.'
-              : c.interruption ??
-                  'Stand still while the motion sensors calibrate.',
-        ),
-        if (c.interruption != null && !c.preparing)
-          TextButton.icon(
-            onPressed: c.reconnect,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry connection'),
-          ),
+        _ReadinessNotice(c),
         if (c.storageError != null)
           ActivityNotice(
             'Storage needs attention',
             c.storageError!,
             warning: true,
           ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 3),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Choose an activity',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                ),
-              ),
-              SizedBox(width: 8),
-              Flexible(child: ActivityCaption('One session each')),
-            ],
-          ),
+      ],
+    );
+  }
+}
+
+/// Second step after the readiness check: every tile starts its own session.
+/// Ending a session returns here, so the next activity is one tap away.
+class _ChooseActivityPage extends StatefulWidget {
+  const _ChooseActivityPage();
+  @override
+  State<_ChooseActivityPage> createState() => _ChooseActivityPageState();
+}
+
+class _ChooseActivityPageState extends State<_ChooseActivityPage> {
+  bool _starting = false;
+
+  Future<void> _start(ActivityTrackerController c, ActivityKind kind) async {
+    setState(() => _starting = true);
+    await c.startActivity(kind);
+    if (!mounted) return;
+    setState(() => _starting = false);
+    if (c.isTracking) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const _ActivityPage()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
+        builder: (context, c, _) => _choose(c),
+      );
+
+  Widget _choose(ActivityTrackerController c) {
+    final canStart =
+        !_starting && !c.isTracking && c.connected && c.engine.calibrated;
+    final latest = c.sessions.where((s) => s.endedAt != null).firstOrNull;
+    final lastJump = c.sessions
+        .expand((s) => s.jumps.reversed)
+        .where((j) => j.heightCm != null)
+        .firstOrNull;
+    Widget tile(ActivityKind kind, String detail) => _activityCard(
+          context,
+          kind,
+          detail,
+          canStart ? () => _start(c, kind) : null,
+        );
+    return ActivityLayout(
+      title: 'Choose an activity',
+      actions: [
+        ElevatedButton(
+          onPressed: () =>
+              Navigator.push(context, ActivitySessionsPage.route()),
+          child: const Text('View sessions'),
         ),
+      ],
+      children: [
+        _DeviceStrip(c),
+        if (!c.connected || !c.engine.calibrated) _ReadinessNotice(c),
+        if (c.storageError != null)
+          ActivityNotice(
+            'Storage needs attention',
+            c.storageError!,
+            warning: true,
+          ),
+        const ActivityCaption('Each activity is saved as its own session.'),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -331,6 +353,33 @@ class _ActivityTrackerPageState extends State<ActivityTrackerPage> {
       ],
     );
   }
+}
+
+/// Calibration state, shared by the readiness check and the activity choice.
+class _ReadinessNotice extends StatelessWidget {
+  const _ReadinessNotice(this.c);
+  final ActivityTrackerController c;
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ActivityNotice(
+            c.engine.calibrated
+                ? 'You’re ready'
+                : 'Waiting for a steady signal',
+            c.engine.calibrated
+                ? 'Motion data is available. Continue to choose an activity.'
+                : c.interruption ??
+                    'Stand still while the motion sensors calibrate.',
+          ),
+          if (c.interruption != null && !c.preparing)
+            TextButton.icon(
+              onPressed: c.reconnect,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry connection'),
+            ),
+        ],
+      );
 }
 
 Widget _activityCard(

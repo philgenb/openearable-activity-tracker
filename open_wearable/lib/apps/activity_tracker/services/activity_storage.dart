@@ -73,6 +73,15 @@ class ActivityStorage {
     await sink?.close();
   }
 
+  /// Deletes the raw trace and any exports written for session [id].
+  Future<void> deleteFiles(String id) async {
+    final root = (await directory).path;
+    for (final name in ['$id.csv', '$id.json', '${id}_trials.csv']) {
+      final file = File('$root/$name');
+      if (await file.exists()) await file.delete();
+    }
+  }
+
   /// Explicit export includes session metadata, reference trials and raw IMU.
   Future<List<String>> export(ActivitySession session) async {
     await flushTrace();
