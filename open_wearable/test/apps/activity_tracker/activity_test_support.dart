@@ -35,6 +35,9 @@ class MemoryActivityStorage extends ActivityStorage {
   Future<void> flushTrace() async {}
   @override
   Future<void> closeTrace() async {}
+  final deletedIds = <String>[];
+  @override
+  Future<void> deleteFiles(String id) async => deletedIds.add(id);
 }
 
 class ReplayActivitySource implements ActivitySensorSource {

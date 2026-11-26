@@ -131,32 +131,151 @@ void main() {
       await tester.tap(find.byType(Checkbox).first);
       await tester.pumpAndSettle();
       expect(find.text('Ready to move?'), findsOneWidget);
+      // The activity choice is its own step after the readiness check.
+      expect(find.text('Squats'), findsNothing);
+      expect(c.sessions, isEmpty);
       await preview(tester, 'ready-$width', key);
-      await tester.tap(find.text('Start tracking'));
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
-      expect(find.text('TODAY’S STEPS'), findsOneWidget);
-      expect(find.text('Study mode'), findsOneWidget);
-      await preview(tester, 'overview-$width', key);
-      await tester.tap(find.text('Squats').first);
+      await tester.scrollUntilVisible(
+        find.text('Squats'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await preview(tester, 'activities-$width', key);
+      await tester.tap(find.text('Squats'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Counting repetitions'), findsOneWidget);
+      expect(c.current!.kind, ActivityKind.squats);
       await preview(tester, 'squats-$width', key);
       await tester.tap(find.text('Pause'));
       await tester.pumpAndSettle();
       expect(find.text('Take your time'), findsOneWidget);
       await tester.tap(find.text('Resume'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Finish set'));
+      await tester.tap(find.text('End session'));
       await tester.pumpAndSettle();
+      expect(c.isTracking, isFalse);
+      expect(c.sessions.single.sets.single.kind, ActivityKind.squats);
       await tester.tap(find.text('View sessions'));
       await tester.pumpAndSettle();
       expect(find.text('Sessions'), findsOneWidget);
+      expect(find.textContaining('Squats ·'), findsOneWidget);
+      await tester.tap(find.byTooltip('Delete session'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(c.sessions, isEmpty);
+      expect(find.text('No sessions yet'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       c.dispose();
       await tester.pump();
     });
   }
+  testWidgets('sessions start per activity and end when it is left',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final source = ReplayActivitySource();
+    final c = ActivityTrackerController(
+      source: source,
+      storage: MemoryActivityStorage(),
+      observeLifecycle: false,
+    );
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: c,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ActivityTrackerPage(wearable: TestActivityWearable()),
+                ),
+              ),
+              child: const Text('Open tracker'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open tracker'));
+    // The connecting spinner never settles; pump past the route transition.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    source.still();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pump();
+    // The overview itself never starts a session.
+    expect(c.isTracking, isFalse);
+    expect(c.sessions, isEmpty);
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    Future<void> open(String tile) async {
+      await tester.scrollUntilVisible(
+        find.text(tile),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text(tile));
+      await tester.pumpAndSettle();
+    }
+
+    // Back from an activity asks, then ends exactly that session.
+    await open('Jump test');
+    expect(c.current!.kind, ActivityKind.jumps);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('End jump test session?'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('End session'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(c.isTracking, isFalse);
+    expect(c.sessions.single.endedAt, isNotNull);
+    expect(source.closed, isFalse);
+    expect(find.text('Choose an activity'), findsOneWidget);
+
+    // Cancel keeps the session; End session closes it.
+    await open('Steps');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(c.isTracking, isTrue);
+    await tester.tap(find.text('End session'));
+    await tester.pumpAndSettle();
+    expect(c.isTracking, isFalse);
+    expect(c.sessions.map((s) => s.kind), [
+      ActivityKind.steps,
+      ActivityKind.jumps,
+    ]);
+    expect(c.sessions.every((s) => s.endedAt != null), isTrue);
+
+    // Leaving the tracker releases the wearable without a dialog.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Ready to move?'), findsOneWidget);
+    expect(source.closed, isFalse);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Open tracker'), findsOneWidget);
+    expect(source.closed, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    c.dispose();
+    await tester.pump();
+  });
   testWidgets(
       'English study inputs save an actual comparison and render in dark mode',
       (tester) async {

@@ -96,7 +96,7 @@ Future<void> main(List<String> arguments) async {
       }
       results.add({
         'file': path,
-        'algorithmVersion': 'heuristic-1',
+        'algorithmVersion': 'heuristic-2',
         'initialCalibrationRestored': initialCalibration != null,
         'calibratedAtEnd': engine.calibrated,
         'samples': samples,

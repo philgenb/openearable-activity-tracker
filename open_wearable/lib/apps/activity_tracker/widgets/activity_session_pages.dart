@@ -9,6 +9,8 @@ import 'activity_widgets.dart';
 /// Stored workouts and the currently running session.
 class ActivitySessionsPage extends StatelessWidget {
   const ActivitySessionsPage({super.key});
+  static Route<void> route() =>
+      MaterialPageRoute(builder: (_) => const ActivitySessionsPage());
   @override
   Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
         builder: (context, c, _) => ActivityLayout(
@@ -17,7 +19,7 @@ class ActivitySessionsPage extends StatelessWidget {
             if (c.sessions.isEmpty)
               const ActivityNotice(
                 'No sessions yet',
-                'Start tracking to save your steps, exercise sets and jump attempts.',
+                'Choose an activity to save your steps, exercise sets and jump attempts.',
               ),
             for (final s in c.sessions)
               ActivityCard(
@@ -29,20 +31,18 @@ class ActivitySessionsPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const ActivityIcon('activity', box: true),
+                    ActivityIcon(activityIconName(s.kind), box: true),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${activityDate(s.startedAt)} · ${activityTime(s.startedAt)}',
+                            '${s.kind?.label ?? 'Workout'} · ${activityDate(s.startedAt)} · ${activityTime(s.startedAt)}',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 5),
-                          ActivityCaption(
-                            '${s.steps} steps · ${s.repetitions} reps · ${s.jumps.length} jumps',
-                          ),
+                          ActivityCaption(activitySessionResult(s)),
                           if (s.endedAt == null || s.interrupted)
                             ActivityCaption(
                               s.interrupted
@@ -52,6 +52,12 @@ class ActivitySessionsPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (!identical(s, c.current))
+                      IconButton(
+                        tooltip: 'Delete session',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _confirmDelete(context, c, s),
+                      ),
                     const Icon(Icons.chevron_right),
                   ],
                 ),
@@ -61,6 +67,35 @@ class ActivitySessionsPage extends StatelessWidget {
       );
 }
 
+Future<void> _confirmDelete(
+  BuildContext context,
+  ActivityTrackerController c,
+  ActivitySession s,
+) async {
+  final delete = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: const Text('Delete session?'),
+      content: Text(
+        '${s.kind?.label ?? 'Workout'} from ${activityDate(s.startedAt)}, '
+        '${activityTime(s.startedAt)} and its recorded motion data are '
+        'removed. This cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialog),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialog, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (delete == true) await c.deleteSession(s);
+}
+
 /// Saved metrics and exports, using only confirmed algorithm events.
 class ActivitySummaryPage extends StatelessWidget {
   const ActivitySummaryPage({super.key, required this.session});
@@ -68,7 +103,6 @@ class ActivitySummaryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Consumer<ActivityTrackerController>(
         builder: (context, c, _) {
-          final live = identical(c.current, session);
           final duration = (session.endedAt ?? DateTime.now())
               .difference(session.startedAt)
               .inSeconds;
@@ -83,22 +117,26 @@ class ActivitySummaryPage extends StatelessWidget {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(live ? 'Back to tracking' : 'Done'),
+                child: const Text('Done'),
               ),
             ],
             children: [
               Row(
                 children: [
                   ActivityBadge(
-                    live
-                        ? 'Session in progress'
-                        : session.interrupted
-                            ? 'Session recovered'
-                            : 'Session saved',
+                    session.interrupted ? 'Session recovered' : 'Session saved',
                     warning: session.interrupted,
                   ),
                 ],
               ),
+              if (session.kind != null)
+                Text(
+                  session.kind!.label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 24,
+                  ),
+                ),
               Text(
                 '${activityDate(session.startedAt)}, ${activityTime(session.startedAt)} · ${activityDuration(duration)}',
                 style:
@@ -221,13 +259,6 @@ class ActivitySummaryPage extends StatelessWidget {
                   'Study mode · ${session.trials.length} reference trials',
                 ),
               ),
-              if (live)
-                OutlinedButton(
-                  onPressed: () async {
-                    await c.finish();
-                  },
-                  child: const Text('End and save session'),
-                ),
               if (c.storageError != null)
                 ActivityNotice(
                   'Storage needs attention',

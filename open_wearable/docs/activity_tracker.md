@@ -8,20 +8,29 @@ phone screens on the core page of the [approved Figma file](https://www.figma.co
 ## Flow and scope
 
 1. Connect an OpenEarable with three-axis accelerometer and gyroscope streams.
-2. Check the fit and stand still for 1.5 seconds. Start tracking once calibrated.
-3. Steps continue across mini-app navigation. Choose Squats or Push-ups, hold the
-   starting position briefly, then perform complete down/up cycles. Finish each
-   set before starting another exercise. Exercise sets suppress step counting.
-4. Jump test detects take-off/free flight/landing and displays an estimated
-   height only when the timing and signal pass the quality checks. Jumps can
-   also be detected between exercises after a still preparation period.
-5. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
+2. Check the fit and stand still for 1.5 seconds.
+3. "Continue" opens a separate activity screen; the readiness screen records
+   nothing. Choose one of four activities: Steps, Squats, Push-ups or Jump
+   test. Each tile starts its own session (`ActivitySession.kind`).
+4. Squats and push-ups: hold the starting position briefly, then perform
+   complete down/up cycles. The session holds one set.
+5. Jump test detects take-off/free flight/landing and displays an estimated
+   height only when the timing and signal pass the quality checks. No still
+   stance is needed. Only jump sessions record jumps.
+6. Pause/resume preserves confirmed counts. Disconnects and data gaps discard
    incomplete movements and require still calibration before counting resumes.
-6. End the session from the overview menu. History, reference trials, JSON and
-   CSV exports are available in Sessions. Leaving the mini-app does not end an
-   active session; leaving readiness without starting releases its sensors.
+7. "End session" or back (after a confirmation) ends exactly that session and
+   returns to the activity screen. A session never keeps running in the background.
+   The wearable stays streaming and calibrated, so the next activity starts
+   without reconnecting. Leaving the tracker ends any running session and
+   releases its sensors.
+8. History, reference trials, JSON and CSV exports are available in Sessions.
    The app tile also opens without a connected wearable, so history and an
-   interrupted session remain accessible offline.
+   interrupted session remain accessible offline. Sessions saved before
+   `kind` existed are listed as "Workout". Finished sessions can be deleted
+   from the list after a confirmation; this removes the snapshot entry, the raw
+   CSV and exports, and subtracts its steps from the day it started. The
+   running session has no delete button.
 
 There is no ML, automatic exercise selection, walking/running/stairs classifier
 or microphone processing in this implementation. The user selects the exercise.
@@ -85,9 +94,17 @@ a full body cycle cannot always be inferred from the ear.
 Jump height uses `h = g * flight_time² / 8`, with still preparation, propulsion,
 a low-acceleration flight interval and landing confirmation. Similar take-off
 and landing posture is assumed. It estimates ballistic flight height, not
-absolute head displacement. Samples slower than 40 Hz, ambiguous landings and
-clipped impacts produce an unavailable height. The ±2 g clipping heuristic is
-conservative for the OE2 compact format. Walking/running is not classified.
+absolute head displacement. Take-off and landing are the interpolated crossings
+of a 3.5 m/s² free-fall threshold, so clipped impact peaks do not affect the
+height. Take-off is the first crossing after the last push sample; only an
+impact ends the flight, so head oscillation after toe-off and in-air bumps do
+not shorten it. Samples slower than 40 Hz and ambiguous landings produce an unavailable
+height. A fixed offset (`ActivityEngine.jumpFlightOffset`, 40 ms) is subtracted
+from every measured flight, because at the ear free fall starts before toe-off.
+It was fitted against 240 fps video (1 person, 30 jumps) and must be refitted
+with more participants. Validity limits apply to the raw flight time. Exports
+with the offset carry `algorithmVersion: heuristic-2`. Walking/running is not
+classified.
 
 Synthetic replay tests verify implementation behavior, **not real-world
 accuracy**. No earable hardware or participant dataset was available during

@@ -123,14 +123,17 @@ class ActivityTrackerController extends ChangeNotifier
     }
   }
 
-  /// Cancels readiness streaming if the user leaves without starting a session.
-  Future<void> releasePreparedDevice() async {
-    if (isTracking) return;
+  /// Leaving the tracker ends a running session and stops IMU streaming, so
+  /// no session is left open in the background.
+  Future<void> leave() async {
+    await finish();
     deviceId = null;
     await source.close();
   }
 
-  Future<void> start() async {
+  /// Starts a session for exactly one activity. The overview itself records
+  /// nothing; only selecting an activity creates a session.
+  Future<void> startActivity(ActivityKind kind) async {
     await ready;
     if (isTracking || !connected || !engine.calibrated) return;
     final now = DateTime.now();
@@ -138,12 +141,13 @@ class ActivityTrackerController extends ChangeNotifier
       id: now.microsecondsSinceEpoch.toString(),
       startedAt: now,
       deviceName: source.deviceName,
+      kind: kind,
       calibration: engine.calibration,
     );
     try {
       await storage.startTrace(session.id);
       for (final sample in _preRoll) {
-        storage.append(sample, ActivityKind.steps, false, false, 0, 0, null);
+        storage.append(sample, kind, false, false, 0, 0, null);
       }
       _preRoll.clear();
     } catch (e) {
@@ -154,21 +158,12 @@ class ActivityTrackerController extends ChangeNotifier
     current = session;
     sessions.insert(0, session);
     paused = false;
-    engine.select(ActivityKind.steps);
-    await checkpoint();
-    _notify();
-  }
-
-  void startExercise(ActivityKind kind) {
-    if (!canCount || mode != ActivityKind.steps || kind == ActivityKind.steps) {
-      return;
-    }
     repetitions = 0;
-    _setClock
-      ..reset()
-      ..start();
+    _setClock.reset();
+    if (kind != ActivityKind.steps) _setClock.start();
     engine.select(kind);
     _signal.clear();
+    await checkpoint();
     _notify();
   }
 
@@ -189,15 +184,14 @@ class ActivityTrackerController extends ChangeNotifier
     _notify();
   }
 
-  void finishSet() {
-    if (current == null || mode == ActivityKind.steps) return;
-    if (mode != ActivityKind.jumps) {
-      current!.sets.add(
-        ExerciseSet(
-          kind: mode,
-          repetitions: repetitions,
-          seconds: setSeconds,
-        ),
+  /// Ends the activity's session. The wearable keeps streaming, so the next
+  /// activity starts without reconnecting; [leave] releases it.
+  Future<ActivitySession?> finish() async {
+    if (current == null) return null;
+    final result = current!;
+    if (mode == ActivityKind.squats || mode == ActivityKind.pushUps) {
+      result.sets.add(
+        ExerciseSet(kind: mode, repetitions: repetitions, seconds: setSeconds),
       );
     }
     repetitions = 0;
@@ -206,26 +200,38 @@ class ActivityTrackerController extends ChangeNotifier
       ..reset();
     paused = false;
     engine.select(ActivityKind.steps);
-    unawaited(checkpoint());
-    _notify();
-  }
-
-  Future<ActivitySession?> finish() async {
-    if (current == null) return null;
-    finishSet();
-    final result = current!;
     result.endedAt = DateTime.now();
     current = null;
-    deviceId = null;
     await checkpoint();
     try {
       await storage.closeTrace();
     } catch (e) {
       storageError = 'Motion trace could not be saved. $e';
     }
-    await source.close();
     _notify();
     return result;
+  }
+
+  /// Removes a finished session with its exports and raw trace. Its steps
+  /// leave the daily total of the day it started. The running session
+  /// cannot be deleted; end it first.
+  Future<void> deleteSession(ActivitySession session) async {
+    if (identical(session, current) || !sessions.remove(session)) return;
+    final day = session.startedAt.toIso8601String().substring(0, 10);
+    final left = (_dailySteps[day] ?? 0) - session.steps;
+    if (left > 0) {
+      _dailySteps[day] = left;
+    } else {
+      _dailySteps.remove(day);
+    }
+    _notify();
+    await checkpoint();
+    try {
+      await storage.deleteFiles(session.id);
+    } catch (e) {
+      storageError = 'Session files could not be deleted. $e';
+      _notify();
+    }
   }
 
   void addTrial(ActivitySession session, ValidationTrial trial) {
@@ -258,7 +264,10 @@ class ActivityTrackerController extends ChangeNotifier
         _dailySteps[_day] = todaySteps + update.steps;
       }
       repetitions += update.repetitions;
-      if (update.jump != null) current!.jumps.add(update.jump!);
+      // The step detector also watches for jumps to suppress steps; only the
+      // jump test's own session records them.
+      final jump = mode == ActivityKind.jumps ? update.jump : null;
+      if (jump != null) current!.jumps.add(jump);
       storage.append(
         sample,
         mode,
@@ -266,9 +275,9 @@ class ActivityTrackerController extends ChangeNotifier
         engine.calibrated,
         update.steps,
         update.repetitions,
-        update.jump?.heightCm,
+        jump?.heightCm,
       );
-      if (update.steps > 0 || update.repetitions > 0 || update.jump != null) {
+      if (update.steps > 0 || update.repetitions > 0 || jump != null) {
         unawaited(checkpoint());
       }
     }

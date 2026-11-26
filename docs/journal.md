@@ -2,6 +2,64 @@
 
 Neueste Einträge oben. Format siehe [README](README.md#journal-eintrag).
 
+## 2026-11-21: Fester Flugzeit-Offset von 40 ms für die Sprunghöhe
+
+**Was:** Neue Sprung-Session (13 Sprünge) Frame für Frame mit 240-fps-Video verglichen. Danach zieht die App von jeder gemessenen Flugzeit 40 ms ab (`ActivityEngine.jumpFlightOffset`). Der Export trägt jetzt `algorithmVersion: heuristic-2`. Details: [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#video-vergleich-session-4-und-fester-offset-21112026).
+
+**Warum:** Die App hat alle 13 Sprünge zu lang gemessen, im Mittel +50 ms (Höhe +4 cm). Der Grund: Am Ohr beginnt der Freifall etwa 40–50 ms, bevor die Zehen den Boden verlassen, und das bei jedem Sprung fast gleich (Streuung 10 ms). Der Offset ist der Median-Fehler über alle 30 Sprünge mit Video (41 ms).
+
+**Verworfen:** Ein Offset, der von der Sprunghöhe abhängt. Kleine Sprünge werden zwar stärker überschätzt, aber dieser Zusammenhang ist nur in einer von drei Sessions deutlich. Beim Prüfen auf jeweils der dritten Session war er schlechter als der feste Offset (MAE 32 bzw. 28 statt 26 ms). Andere Schwellen für Absprung oder Landung brachten weniger.
+
+**Ergebnis:** 1 Person, 30 Sprünge, ca. 100 Hz, Referenz 240-fps-Video. Fit auf je zwei Sessions, Test auf der dritten: MAE der Flugzeit 44 → 26 ms. Mit 40 ms auf allen Daten: Höhe Bias +2,7 → −1,0 cm, MAE 3,9 → 2,2 cm. Replay: jede Flugzeit genau 40 ms kürzer, keine Sprünge verloren. Activity-Tracker-Tests grün, neuer Test sichert ab, dass die Mindestflugzeit für die Rohzeit gilt.
+
+**Offen:** Mit mehreren Personen neu fitten und dort den höhenabhängigen Offset erneut prüfen. Replay von Session 1 (13.11.) liefert keine Sprünge, unabhängig vom Offset. Noch nicht am Gerät nachgetestet.
+
+## 2026-11-21: Aktivitätswahl als eigener Schritt, Sessions löschen
+
+**Was:** „Ready to move?“ (Gerät, Sitz prüfen, Kalibrierung) ist jetzt ein eigener Bildschirm. Erst „Continue“ öffnet die Aktivitätswahl mit den vier Kacheln und der letzten Session. Nach „End session“ landet man wieder bei der Aktivitätswahl. In der Session-Liste hat jede beendete Session einen Löschen-Button mit Rückfrage. Gelöscht werden der Eintrag, die Roh-CSV und eventuelle Exporte, und die Schritte der Session fallen aus dem Tageswert.
+
+**Warum:** Am Tablet standen Check und Aktivitätswahl auf einer langen Seite. Die Kacheln lagen unter der Falz und wirkten wie ein Teil der Vorbereitung. Getrennt ist die Reihenfolge eindeutig: erst bereit machen, dann wählen. Löschen braucht man, weil beim Testen viele kurze Probe-Sessions entstehen, die die Liste und spätere Auswertungen verstopfen.
+
+**Verworfen:** Wischen zum Löschen. Auf dem Tablet schwer zu entdecken und leicht aus Versehen auszulösen. Die laufende Session lässt sich nicht löschen, sie muss erst beendet werden.
+
+**Ergebnis:** Controller-Test fürs Löschen (Eintrag, Dateien, Tageswert, laufende Session geschützt) und Widget-Tests für den neuen Ablauf. `flutter analyze` ohne Befund, alle 221 Tests grün.
+
+## 2026-11-17: Eine Session pro Aktivität
+
+**Was:** Der Tracker legt Sessions nur noch an, wenn man eine Aktivität antippt. Die Übersicht hat vier Kacheln: Steps, Squats, Push-ups, Jump test. Jede startet ihre eigene Session. „End session“ oder Zurück (mit Rückfrage) beendet sie und führt zurück zur Übersicht. Die Übersicht zählt und speichert nichts. Wer den Tracker verlässt, beendet eine noch laufende Session und gibt das Earable frei. Die Session-Liste zeigt pro Eintrag die Aktivität und das passende Ergebnis.
+
+**Warum:** Am Gerätetest vom 17.11. lagen nach kurzer Zeit mehrere nie beendete Sessions in der Liste. Ursache war der Ablauf vom 13.11.: „Start tracking“ öffnete eine app-weite Schritt-Session, und jedes Ende eines Sprung-Tests startete sofort die nächste. So lief praktisch immer eine Session im Hintergrund, auch ohne dass jemand etwas messen wollte. Die Entscheidung vom 13.11. („Session läuft app-weit weiter“) ist damit ersetzt.
+
+**Verworfen:** Tagesschritte auf der Übersicht ohne Session weiterzählen. Dann gäbe es Schritte ohne Roh-CSV, und die Schritt-Auswertung bräuchte doch wieder einen eigenen Modus. Schritte sind jetzt eine Aktivität wie die anderen. „Today“ zählt nur Schritte aus Schritt-Sessions.
+
+**Nebenbei:** Sprünge landen nur noch in Sprung-Sessions. Vorher konnte die Schritt-Session nach einer Ruhephase auch Sprünge speichern.
+
+**Ergebnis:** Controller- und Widget-Tests für den neuen Ablauf (Übersicht legt keine Session an, Zurück beendet genau die eine Session, Verlassen schließt alles). `flutter analyze` ohne Befund, Activity-Tracker-Tests grün. Ältere gespeicherte Sessions haben keine Aktivität und erscheinen als „Workout“.
+
+Sprungdaten desselben Tests: [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#gerätetest-ohne-referenz-17112026).
+
+## 2026-11-15: Sprunghöhe gegen 240-fps-Video geprüft und Absprung korrigiert
+
+**Was:** Zwei Sprung-Sessions vom 13.11. (1 Person, 17 Sprünge) Frame für Frame mit Slow-Motion-Video verglichen. Danach den Absprung im Detektor umgebaut. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-vergleich-mit-slow-motion-video-13112026).
+
+**Warum:** Die App lag im Mittel 51 ms bei der Flugzeit (5 cm bei der Höhe) zu niedrig, einzelne Sprünge bis 180 ms. Die Roh-CSVs zeigen die Ursache: Nach dem Abdruck pendelt |a| bis 0,2 s um die Freifall-Schwelle. Der Fix vom 13.11. hat den Absprung deshalb zu spät gesetzt. Jetzt zählt die erste Unterschreitung nach dem letzten Abdruck-Sample, und nur ein Aufprall beendet den Flug.
+
+**Ergebnis:** Replay derselben Daten: MAE der Flugzeit 75 → 40 ms, Bias −51 → +20 ms, 17 statt 16 Sprünge mit Höhe. `flightOffset` bewusst nicht gefittet (nur 1 Person). 220 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet. Videos, Roh-CSVs und die Excel-Auswertung bleiben lokal.
+
+## 2026-11-13: Sprung-Test am Earable und Session-Navigation
+
+**Was:** `feat/jump-height` auf den aktuellen `main` rebased. Erster Sprung-Test mit Hardware (1 Person, 4 Sprünge, ca. 100 Hz, keine Referenz): Die App zeigte keine einzige Höhe. Ursachen und Fix in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md#erster-hardware-test-13112026). Replay der Aufnahme: 3 von 3 gültigen Sprüngen erkannt.
+
+Außerdem drei Navigationsfehler behoben:
+
+- Zurück aus dem Sprung-Test ließ den Modus auf „Jumps“, danach war keine Übung mehr wählbar. Der Sprung-Test hat unten nur noch „Pause“ und „End session“, Zurück fragt dasselbe. „End session“ speichert die Session und startet sofort eine neue auf demselben, schon kalibrierten Earable. Man landet direkt auf der Schritt-Übersicht. „End and save session“ in der Session-Ansicht macht dasselbe. Das komplette Tracking beendet man über die Übersicht (Menü oder Zurück-Dialog). Entscheidung nach zwei Gerätetests: Für Sprungmessungen soll eine Session ein Testblock sein, der sich ohne Neuverbinden abschließen lässt.
+- Session beenden trennte das Earable, man musste neu verbinden. Jetzt bleibt es verbunden und kalibriert, die nächste Session startet direkt. Freigegeben wird es erst beim Verlassen des Trackers.
+- „Back to tracking“ in der Zusammenfassung ging nur zur Session-Liste zurück. Jetzt springt es bis zum Tracker.
+
+**Warum so:** Die Session selbst läuft bewusst app-weit weiter, damit Schritte zwischen Screens nicht verloren gehen. Deshalb kein automatisches Beenden beim Zurück, sondern eine Frage.
+
+**Ergebnis:** Synthetischer Regressionstest für die reale Signalform, Widget-Test für den ganzen Zurück- und Beenden-Ablauf. 219 Tests grün, `flutter analyze` ohne Befund. Noch nicht am Gerät nachgetestet.
+
 ## 2026-11-10: Push-up-Erkennung leicht empfindlicher eingestellt
 
 Absenkschwelle 0,020 → 0,019 m/s und Rückkehrbeginn 0,015 → 0,013 m/s.
@@ -67,6 +125,20 @@ Formatierungsprüfung der geänderten Dart-Dateien ohne Änderungen.
 
 **Offen:** Hardware-/Nutzerevaluation, belastbare Parameter und Abgrenzung von
 Kopfbewegungen gegenüber echten Körperzyklen. Kein Nachweis von Ausführungsqualität.
+
+## 2026-11-07: Sprunghöhe überarbeitet
+
+**Was:** Phils Sprungdetektor aus `feat/activity-tracker` übernommen und an zwei Stellen korrigiert. Details in [algorithmen/sprunghoehe.md](algorithmen/sprunghoehe.md).
+
+**Warum:** Der Prototyp verwarf jeden Sprung, sobald der Sensor bei ±2 g abschnitt. Beim Landen am Kopf passiert das fast immer, die App hätte also kaum je eine Höhe angezeigt. Für die Flugzeit-Methode zählen aber nur die Zeitpunkte, an denen die Beschleunigung die Freifall-Schwelle kreuzt, und die liegen weit unter 2 g. Außerdem werden diese Zeitpunkte jetzt zwischen zwei Samples interpoliert, weil 10 ms Fehler bei 100 Hz bis zu ca. 1,2 cm Höhe ausmachen. Verworfen: Höhe über die Abhebegeschwindigkeit (Abdruck wird ebenfalls abgeschnitten) und doppelte Integration (Drift).
+
+**Ergebnis:** Nur synthetische Tests. Flugzeit mit Interpolation innerhalb 1 ms, ohne 7 ms daneben. Keine Messung mit Hardware oder Personen.
+
+**Offen:**
+
+- Evaluation mit Slow-Motion-Video als Referenz, Plan steht im Algorithmus-Dokument.
+- `flightOffset` gegen die Referenz fitten.
+- Messbereich der OE2-IMU prüfen.
 
 ## 2026-11-06: Android-Build auf Java 25 umgestellt
 
